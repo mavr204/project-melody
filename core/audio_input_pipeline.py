@@ -1,3 +1,4 @@
+# Library
 import time
 start = time.time()
 import sounddevice as sd
@@ -6,21 +7,19 @@ import scipy.io.wavfile as wav
 import os
 import datetime
 import threading
+
+# Local
 from faster_whisper import WhisperModel
-from ..config.input_pipe_config import AudioConfig, WhisperModelConfig
+from config.input_pipe_config import AudioConfig, WhisperModelConfig, VADConfig
+from core.VAD import SpeechVAD
 
 print("Imports took ~", time.time() - start, "seconds")     
 
-# Configurations
-audio_config = AudioConfig()
-model_config = WhisperModelConfig()
-
-
-def record_audio(audio_config:AudioConfig, write=False):
-    duration = audio_config.duration
-    sample_rate = audio_config.sample_rate
-    channels = audio_config.channels
-    dtype = audio_config.dtype
+def record_audio(config:AudioConfig, write=False):
+    duration = config.duration
+    sample_rate = config.sample_rate
+    channels = config.channels
+    dtype = config.dtype
     def save_recording(sample_rate, recording):
         os.makedirs("./samples", exist_ok=True)
         date_str = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -50,11 +49,11 @@ def record_audio(audio_config:AudioConfig, write=False):
     print(recording.shape, recording.dtype, np.max(recording), np.min(recording))
     return recording
 
-def load_model(model_config:WhisperModelConfig):
-    model_size=model_config.model_size
-    device=model_config.device
-    compute_type=model_config.compute_type
-    
+def load_model(config:WhisperModelConfig):
+    model_size=config.model_size
+    device=config.device
+    compute_type=config.compute_type
+
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
     print("Model Loaded.")
     return model
@@ -69,28 +68,29 @@ def transcribe_audio(model, audio):
         transcribed_text += segment.text
     return transcribed_text
 
-def transcribe_live():
+def transcribe_live(model, audio_config)->str:
     audio = None
-    model = None
 
-    def thread_record():
-        nonlocal audio
-        audio = record_audio()
-
-    def thread_model():
-        nonlocal model
-        model = load_model()
-
-    t1 = threading.Thread(target=thread_record)
-    t2 = threading.Thread(target=thread_model)
-
-    t1.start()
-    t2.start()
-    t1.join()
-    t2.join()
+    audio = record_audio(audio_config)
 
     text = transcribe_audio(model, audio)
     return text
 
-def voice_activity_detector(aggression=10):
-    pass
+def voice_activity_detector(recording, model, vad_config):
+    vad = SpeechVAD(vad_config)
+    audio_bytes = (recording * np.iinfo(np.int16).max).astype(np.int16).tobytes()
+    sample_rate = vad_config.sample_rate
+    frame_duration_ms = vad_config.frame_duration_ms
+
+    bytes_per_sample = np.dtype(np.int16).itemsize  # 2 bytes for int16
+    frame_size = int(sample_rate * (frame_duration_ms / 1000.0) * bytes_per_sample)
+
+    speech_frames = []
+    for i in range(0, len(audio_bytes), frame_size):
+        frame = audio_bytes[i:i + frame_size]
+        if len(frame) < frame_size:
+            continue  # Skip incomplete frames
+        if vad.isSpeech(frame):
+            speech_frames.append(frame)
+            print(transcribe_audio(model, recording))
+            return False

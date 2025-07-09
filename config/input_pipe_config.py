@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-
 @dataclass
 class AudioConfig:
     duration: int = 5
@@ -16,3 +15,8 @@ class WhisperModelConfig:
     compute_type:str = 'int8'
 
 
+@dataclass
+class VADConfig:
+    aggressiveness:int = 2
+    sample_rate: int = 16_000
+    frame_duration_ms = 30
