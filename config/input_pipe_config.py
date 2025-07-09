@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 @dataclass
 class AudioConfig:
-    duration: int = 5
+    duration: int = 0.5
     sample_rate: int = 16_000
     channels: int = 1
     dtype: str = 'float32'
@@ -17,6 +17,7 @@ class WhisperModelConfig:
 
 @dataclass
 class VADConfig:
-    aggressiveness:int = 2
+    aggressiveness:int = 3
     sample_rate: int = 16_000
     frame_duration_ms = 30
+    silence_counter = 10

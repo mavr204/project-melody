@@ -7,13 +7,14 @@ import scipy.io.wavfile as wav
 import os
 import datetime
 import threading
+import queue
 
 # Local
 from faster_whisper import WhisperModel
 from config.input_pipe_config import AudioConfig, WhisperModelConfig, VADConfig
 from core.VAD import SpeechVAD
 
-print("Imports took ~", time.time() - start, "seconds")     
+print("Imports took ~", time.time() - start, "seconds")
 
 def record_audio(config:AudioConfig, write=False):
     duration = config.duration
@@ -43,10 +44,9 @@ def record_audio(config:AudioConfig, write=False):
     if write:
         save_recording(sample_rate, recording)
     
-    # Flattens the ndarray, for mono audio
+    # Flattens the ndarray to 1 dimension, for mono audio
     if channels == 1:
         recording = recording.flatten()
-    print(recording.shape, recording.dtype, np.max(recording), np.min(recording))
     return recording
 
 def load_model(config:WhisperModelConfig):
@@ -76,21 +76,63 @@ def transcribe_live(model, audio_config)->str:
     text = transcribe_audio(model, audio)
     return text
 
-def voice_activity_detector(recording, model, vad_config):
+def record_audio_stream(config: AudioConfig, audio_queue: queue.Queue, stop_event:threading.Event):
+    sample_rate = config.sample_rate
+    channels = config.channels
+    dtype = config.dtype
+    frame_duration_sec = config.duration
+    frame_samples = int(sample_rate * frame_duration_sec)
+
+    if channels != 1:
+        raise ValueError("Only mono audio (1 channel) supported for VAD.")
+    
+    print("Starting recording...")
+
+    while not stop_event.is_set():
+        recording = sd.rec(frame_samples, samplerate=sample_rate, channels=channels, dtype=dtype)
+        sd.wait()
+        recording = recording.flatten() 
+        audio_queue.put(recording)
+
+
+def voice_activity_detector(model, vad_config:VADConfig, audio_config:AudioConfig):
     vad = SpeechVAD(vad_config)
-    audio_bytes = (recording * np.iinfo(np.int16).max).astype(np.int16).tobytes()
     sample_rate = vad_config.sample_rate
     frame_duration_ms = vad_config.frame_duration_ms
-
     bytes_per_sample = np.dtype(np.int16).itemsize  # 2 bytes for int16
     frame_size = int(sample_rate * (frame_duration_ms / 1000.0) * bytes_per_sample)
+    max_silence_frames = vad_config.silence_counter
+    audio_queue = queue.Queue()
 
-    speech_frames = []
-    for i in range(0, len(audio_bytes), frame_size):
-        frame = audio_bytes[i:i + frame_size]
-        if len(frame) < frame_size:
-            continue  # Skip incomplete frames
-        if vad.isSpeech(frame):
-            speech_frames.append(frame)
-            print(transcribe_audio(model, recording))
-            return False
+    stop_event = threading.Event()
+    recording_thread = threading.Thread(target=record_audio_stream, args=(audio_config, audio_queue, stop_event))
+    recording_thread.start()
+    
+    speech_buffer = []
+    speech_detected = False
+    
+    print("VAD running...")
+    while True:
+        recording = audio_queue.get()
+
+        audio_bytes = (recording * np.iinfo(np.int16).max).astype(np.int16).tobytes()
+
+        for i in range(0, len(audio_bytes), frame_size):
+            frame = audio_bytes[i:i + frame_size]
+            if len(frame) < frame_size:
+                continue 
+            if vad.isSpeech(frame):
+                speech_buffer.append(frame)
+                speech_detected = True
+                silence_counter = 0
+            elif speech_detected:
+                silence_counter += 1
+                if silence_counter > max_silence_frames:
+
+                    stop_event.set()
+                    recording_thread.join()
+                    speech_bytes = b''.join(speech_buffer)
+                    recording_float32 = np.frombuffer(speech_bytes, dtype=np.int16).astype(np.float32) / np.iinfo(np.int16).max
+                    print(transcribe_audio(model, recording_float32))
+                    return  
+                
