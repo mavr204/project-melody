@@ -1,12 +1,26 @@
+import time
+start = time.time()
 import sounddevice as sd
 import numpy as np
 import scipy.io.wavfile as wav
 import os
 import datetime
-from faster_whisper import WhisperModel
 import threading
+from faster_whisper import WhisperModel
+from ..config.input_pipe_config import AudioConfig, WhisperModelConfig
 
-def record_audio(duration=5, sample_rate=16_000, channels=1, dtype='float32', write=False):
+print("Imports took ~", time.time() - start, "seconds")     
+
+# Configurations
+audio_config = AudioConfig()
+model_config = WhisperModelConfig()
+
+
+def record_audio(audio_config:AudioConfig, write=False):
+    duration = audio_config.duration
+    sample_rate = audio_config.sample_rate
+    channels = audio_config.channels
+    dtype = audio_config.dtype
     def save_recording(sample_rate, recording):
         os.makedirs("./samples", exist_ok=True)
         date_str = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -30,12 +44,17 @@ def record_audio(duration=5, sample_rate=16_000, channels=1, dtype='float32', wr
     if write:
         save_recording(sample_rate, recording)
     
+    # Flattens the ndarray, for mono audio
     if channels == 1:
         recording = recording.flatten()
     print(recording.shape, recording.dtype, np.max(recording), np.min(recording))
     return recording
 
-def load_model(model_size="small", device="cpu", compute_type="int8"):
+def load_model(model_config:WhisperModelConfig):
+    model_size=model_config.model_size
+    device=model_config.device
+    compute_type=model_config.compute_type
+    
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
     print("Model Loaded.")
     return model
@@ -72,3 +91,6 @@ def transcribe_live():
 
     text = transcribe_audio(model, audio)
     return text
+
+def voice_activity_detector(aggression=10):
+    pass
