@@ -1,9 +1,6 @@
 import webrtcvad
 from config.input_pipe_config import VADConfig
 
-# Config Variables
-vad_config = VADConfig()
-
 class SpeechVAD:
 
     def __init__(self, config:VADConfig):
