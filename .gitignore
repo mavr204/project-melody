@@ -2,3 +2,4 @@
 .ver1.0(STT-whispercpp)/models/
 .ver1.0(STT-whispercpp)/whisper.cpp/
 __pycache__/
+__test__.py/

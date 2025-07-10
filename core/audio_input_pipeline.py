@@ -1,31 +1,17 @@
 # Library
-import time
-start = time.time()
+from faster_whisper import WhisperModel
 import sounddevice as sd
 import numpy as np
-import scipy.io.wavfile as wav
-import threading
+from threading import Thread, Event
 import queue
 
 # Local
-from faster_whisper import WhisperModel
-from config.input_pipe_config import AudioConfig, WhisperModelConfig, VADConfig
 from core.VAD import SpeechVAD
 import stubs.wake_up_detection as wad
+from config.input_pipe_config import AudioConfig, VADConfig
 
-print("Imports took ~", time.time() - start, "seconds")
-
-def load_model(config:WhisperModelConfig)->WhisperModel:
-    model_size=config.model_size
-    device=config.device
-    compute_type=config.compute_type
-
-    model = WhisperModel(model_size, device=device, compute_type=compute_type)
-    print("Model Loaded.")
-    return model
-
-def transcribe_audio(model, audio)->str:
-    segments, info = model.transcribe(audio=audio, beam_size=5)
+def transcribe_audio(model: WhisperModel, audio: np.ndarray, beam_size: int) -> str:
+    segments, info = model.transcribe(audio=audio, beam_size=beam_size)
     print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
 
     transcribed_text = ''
@@ -34,7 +20,11 @@ def transcribe_audio(model, audio)->str:
         transcribed_text += segment.text
     return transcribed_text
 
-def record_audio_stream(config: AudioConfig, audio_queue: queue.Queue, stop_event:threading.Event)->None:
+def transcribe_byte_audio(model: WhisperModel, beam_size: int, byte_audio: list | None = None) -> str:
+    audio_float32 = np.frombuffer(b''.join(byte_audio), dtype=np.int16).astype(np.float32) / np.iinfo(np.int16).max
+    return transcribe_audio(model=model, audio=audio_float32, beam_size=beam_size)
+
+def record_audio_stream(config: AudioConfig, audio_queue: queue.Queue, stop_event: Event) -> None:
     sample_rate = config.sample_rate
     channels = config.channels
     dtype = config.dtype
@@ -44,6 +34,10 @@ def record_audio_stream(config: AudioConfig, audio_queue: queue.Queue, stop_even
     if channels != 1:
         raise ValueError("Only mono audio (1 channel) supported for VAD.")
     
+    # Discard first frame to remove startup noise
+    sd.rec(frame_samples, samplerate=sample_rate, channels=channels, dtype=dtype)
+    sd.wait()
+
     print("Starting recording...")
 
     while not stop_event.is_set():
@@ -51,23 +45,14 @@ def record_audio_stream(config: AudioConfig, audio_queue: queue.Queue, stop_even
         sd.wait()
         recording = recording.flatten() 
         audio_queue.put(recording)
-
-def voice_activity_detector(model, vad_config:VADConfig, audio_config:AudioConfig)->bool:
-    vad = SpeechVAD(vad_config)
-    sample_rate = vad_config.sample_rate
-    frame_duration_ms = vad_config.frame_duration_ms
-    bytes_per_sample = np.dtype(np.int16).itemsize  # 2 bytes for int16
-    frame_size = int(sample_rate * (frame_duration_ms / 1000.0) * bytes_per_sample)
-    max_silence_frames = vad_config.silence_counter
-    audio_queue = queue.Queue()
-
-    stop_event = threading.Event()
-    recording_thread = threading.Thread(target=record_audio_stream, args=(audio_config, audio_queue, stop_event))
-    recording_thread.start()
     
+def monitor_voice_activity(vad_config: VADConfig, audio_queue: queue.Queue, stop_event: Event, model: WhisperModel, beam_size: int) -> bool:
+    # Calculate the number of frames in the frame_duration
+    frame_size = int(vad_config.sample_rate * (vad_config.frame_duration_ms / 1000.0) * np.dtype(np.int16).itemsize) # Frame duration in ms / 1000 = frame duration in seconds
     speech_buffer = []
     speech_detected = False
     silence_counter = 0
+    vad = SpeechVAD(vad_config)
     
     print("VAD running...")
     while True:
@@ -78,17 +63,33 @@ def voice_activity_detector(model, vad_config:VADConfig, audio_config:AudioConfi
         for i in range(0, len(audio_bytes), frame_size):
             frame = audio_bytes[i:i + frame_size]
             if len(frame) < frame_size:
-                continue 
+                continue
             if vad.isSpeech(frame):
                 speech_buffer.append(frame)
                 speech_detected = True
                 silence_counter = 0
             elif speech_detected:
+                print("silence counter: ", silence_counter)
                 silence_counter += 1
-                if silence_counter > max_silence_frames:
+                if silence_counter > vad_config.silence_counter_max:
 
                     stop_event.set()
-                    recording_thread.join()
-                    speech_bytes = b''.join(speech_buffer)
-                    recording_float32 = np.frombuffer(speech_bytes, dtype=np.int16).astype(np.float32) / np.iinfo(np.int16).max                    
-                    return  wad.wake_up_detection_stub(transcribe_audio(model, recording_float32))
+                    print("VAD Stopped.")
+                    print(transcribe_byte_audio(model=model, beam_size=beam_size, byte_audio=speech_buffer))
+                    return  wad.wake_up_detection_stub(transcribe_byte_audio(model=model, beam_size=beam_size, byte_audio=speech_buffer))
+
+def detect_voice(model: WhisperModel, vad_config: VADConfig, audio_config: AudioConfig, beam_size: int) -> bool:
+    # Variables shared between two threads
+    audio_queue = queue.Queue()
+    stop_event = Event()
+    
+    recording_thread = Thread(target=record_audio_stream, args=(audio_config, audio_queue, stop_event))
+    recording_thread.start()
+
+    wake_word_detected = monitor_voice_activity(vad_config=vad_config, 
+                                                audio_queue=audio_queue, 
+                                                stop_event=stop_event, 
+                                                model=model, 
+                                                beam_size=beam_size)
+    recording_thread.join()
+    return wake_word_detected
