@@ -6,6 +6,7 @@ class SpeechVAD:
     def __init__(self, config:VADConfig):
         self.config = config
         self.vad = webrtcvad.Vad(config.aggressiveness)
+        print("Aggressiveness: ",config.aggressiveness)
 
     def isSpeech(self, frame:bytes)->bool:
         """Listening for Speech"""

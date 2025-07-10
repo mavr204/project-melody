@@ -1,10 +1,16 @@
-import core.audio_input_pipeline as ap
-from core.VAD import SpeechVAD
-from config.input_pipe_config import  AudioConfig, WhisperModelConfig, VADConfig
+from config.config_manager import ConfigManager
+from core.audio_input_pipeline import detect_voice
 
-model_sm = ap.load_model(WhisperModelConfig())
-audio_config = AudioConfig()
-vad_config = VADConfig(sample_rate=audio_config.sample_rate)
+def main():
+    config_mgr = ConfigManager()
+    
+    detected = detect_voice(
+        model=config_mgr.whisper_model_sm,
+        vad_config=config_mgr.vad_config,
+        audio_config=config_mgr.audio_config,
+        beam_size=config_mgr.model_config.beam_size
+    )
+    print("Detection:", detected)
 
-
-ap.voice_activity_detector(model_sm, vad_config, audio_config)
+if __name__ == "__main__":
+    main()
