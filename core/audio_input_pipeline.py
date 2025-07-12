@@ -10,6 +10,16 @@ from core.VAD import SpeechVAD
 import stubs.wake_up_detection as wad
 from config.input_pipe_config import AudioConfig, VADConfig
 
+def record_audio():
+    config = AudioConfig(duration=8)
+    frames_in_record_duration = (config.duration * config.sample_rate)
+    
+    print('recording...')
+    recording = sd.rec(frames=frames_in_record_duration, samplerate=config.sample_rate, channels=config.channels, dtype=config.dtype)
+    sd.wait()
+    print('recorded.')
+    return recording
+
 def transcribe_audio(model: WhisperModel, audio: np.ndarray, beam_size: int) -> str:
     segments, info = model.transcribe(audio=audio, beam_size=beam_size)
     print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
@@ -25,23 +35,21 @@ def transcribe_byte_audio(model: WhisperModel, beam_size: int, byte_audio: list 
     return transcribe_audio(model=model, audio=audio_float32, beam_size=beam_size)
 
 def record_audio_stream(config: AudioConfig, audio_queue: queue.Queue, stop_event: Event) -> None:
-    sample_rate = config.sample_rate
-    channels = config.channels
-    dtype = config.dtype
-    frame_duration_sec = config.duration
-    frame_samples = int(sample_rate * frame_duration_sec)
 
-    if channels != 1:
+    frame_duration_sec = config.duration
+    frame_samples = int(config.sample_rate * frame_duration_sec)
+
+    if config.channels != 1:
         raise ValueError("Only mono audio (1 channel) supported for VAD.")
     
     # Discard first frame to remove startup noise
-    sd.rec(frame_samples, samplerate=sample_rate, channels=channels, dtype=dtype)
+    sd.rec(frame_samples, samplerate=config.sample_rate, channels=config.channels, dtype=config.dtype)
     sd.wait()
 
     print("Starting recording...")
 
     while not stop_event.is_set():
-        recording = sd.rec(frame_samples, samplerate=sample_rate, channels=channels, dtype=dtype)
+        recording = sd.rec(frame_samples, samplerate=config.sample_rate, channels=config.channels, dtype=config.dtype)
         sd.wait()
         recording = recording.flatten() 
         audio_queue.put(recording)
