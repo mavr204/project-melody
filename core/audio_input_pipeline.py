@@ -8,10 +8,11 @@ import queue
 # Local
 from core.VAD import SpeechVAD
 import stubs.wake_up_detection as wad
+from config.config_manager import ConfigManager
 from config.input_pipe_config import AudioConfig, VADConfig
 
-def record_audio():
-    config = AudioConfig(duration=8)
+def record_audio(duration: int) -> np.ndarray:
+    config = AudioConfig(duration=duration)
     frames_in_record_duration = (config.duration * config.sample_rate)
     
     print('recording...')
@@ -30,9 +31,8 @@ def transcribe_audio(model: WhisperModel, audio: np.ndarray, beam_size: int) -> 
         transcribed_text += segment.text
     return transcribed_text
 
-def transcribe_byte_audio(model: WhisperModel, beam_size: int, byte_audio: list | None = None) -> str:
-    audio_float32 = np.frombuffer(b''.join(byte_audio), dtype=np.int16).astype(np.float32) / np.iinfo(np.int16).max
-    return transcribe_audio(model=model, audio=audio_float32, beam_size=beam_size)
+def byte_to_float32_audio(byte_audio: list | None = None) -> np.ndarray:
+    return np.frombuffer(b''.join(byte_audio), dtype=np.int16).astype(np.float32) / np.iinfo(np.int16).max
 
 def record_audio_stream(config: AudioConfig, audio_queue: queue.Queue, stop_event: Event) -> None:
 
@@ -54,12 +54,12 @@ def record_audio_stream(config: AudioConfig, audio_queue: queue.Queue, stop_even
         recording = recording.flatten() 
         audio_queue.put(recording)
     
-def monitor_voice_activity(vad_config: VADConfig, audio_queue: queue.Queue, stop_event: Event, model: WhisperModel, beam_size: int) -> bool:
+def voice_activity_detector(vad_config: VADConfig, audio_queue: queue.Queue, stop_event: Event) -> np.ndarray:
     # Calculate the number of frames in the frame_duration
     frame_size = int(vad_config.sample_rate * (vad_config.frame_duration_ms / 1000.0) * np.dtype(np.int16).itemsize) # Frame duration in ms / 1000 = frame duration in seconds
     speech_buffer = []
     speech_detected = False
-    silence_counter = 0
+    silence_frame_counter = 0
     vad = SpeechVAD(vad_config)
     
     print("VAD running...")
@@ -75,29 +75,27 @@ def monitor_voice_activity(vad_config: VADConfig, audio_queue: queue.Queue, stop
             if vad.isSpeech(frame):
                 speech_buffer.append(frame)
                 speech_detected = True
-                silence_counter = 0
+                silence_frame_counter = 0
             elif speech_detected:
-                print("silence counter: ", silence_counter)
-                silence_counter += 1
-                if silence_counter > vad_config.silence_counter_max:
+                if silence_frame_counter == 0:
+                    print("Silence Detected")
+                silence_frame_counter += 1
+                if silence_frame_counter > vad_config.silence_counter_max:
 
                     stop_event.set()
                     print("VAD Stopped.")
-                    print(transcribe_byte_audio(model=model, beam_size=beam_size, byte_audio=speech_buffer))
-                    return  wad.wake_up_detection_stub(transcribe_byte_audio(model=model, beam_size=beam_size, byte_audio=speech_buffer))
+                    return  byte_to_float32_audio(speech_buffer)
 
-def detect_voice(model: WhisperModel, vad_config: VADConfig, audio_config: AudioConfig, beam_size: int) -> bool:
+def detect_voice(config: ConfigManager) -> np.ndarray:
     # Variables shared between two threads
     audio_queue = queue.Queue()
     stop_event = Event()
     
-    recording_thread = Thread(target=record_audio_stream, args=(audio_config, audio_queue, stop_event))
+    recording_thread = Thread(target=record_audio_stream, args=(config.audio_config, audio_queue, stop_event))
     recording_thread.start()
 
-    wake_word_detected = monitor_voice_activity(vad_config=vad_config, 
+    wake_word_detected = voice_activity_detector(vad_config=config.vad_config, 
                                                 audio_queue=audio_queue, 
-                                                stop_event=stop_event, 
-                                                model=model, 
-                                                beam_size=beam_size)
+                                                stop_event=stop_event)
     recording_thread.join()
     return wake_word_detected

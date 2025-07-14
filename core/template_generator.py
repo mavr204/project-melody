@@ -1,14 +1,18 @@
-from core.audio_input_pipeline import record_audio
-import torch
+import numpy as np
+from resemblyzer import VoiceEncoder
+from torch import tensor, float32, Tensor
 
-class TemplateGen:
-    def __init__(self, audio_config):
-        pass
+class BiometricTemplateGenerator:
+    def get_new_embedding(self, audio: np.ndarray) -> np.ndarray:
+        encoder = VoiceEncoder()
 
-    def numpy_to_tensor(self, numpy_data, sample_rate):
-        if sample_rate != 16_000:
-            raise ValueError("ECAPA requires 16kHz audio.")
-        return torch.tensor(numpy_data, dtype=torch.float32).unsqueeze(0)
-    
-    def get_embedding(self, audio_np):
-        self.numpy_to_tensor(audio_np=)
+        assert audio.dtype == np.float32
+        assert audio.ndim == 1
+
+        audio = self._ndarray_to_torch_float32(audio=audio)
+        embedding = encoder.embed_utterance(audio)
+        # np.save("./template/voice_template.npy", embedding)
+        return embedding
+
+    def _ndarray_to_torch_float32(self, audio: np.ndarray) -> Tensor:
+        return tensor(audio, dtype=float32)
