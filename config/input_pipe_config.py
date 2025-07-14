@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from math import ceil
-import numpy as np
+from numpy import ndarray
 
 @dataclass
 class AudioConfig:
@@ -28,6 +28,6 @@ class VADConfig:
 
 @dataclass
 class VoiceBiometricConfig:
-    embedding: np.ndarray | None = None
     template_path: str='./template/voice_template.npy'
-    audio_sample_required=3
+    audio_sample_required: int=3
+    threshold: float= 0.75

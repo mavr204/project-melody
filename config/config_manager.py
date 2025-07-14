@@ -11,7 +11,6 @@ class ConfigManager:
         self.whisper_model_sm = self.load_model()
 
         self.biometric_config = VoiceBiometricConfig()
-        self.biometric_embedding = None
 
     def load_model(self):
         model = WhisperModel(
