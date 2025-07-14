@@ -1,5 +1,4 @@
 # Library
-from faster_whisper import WhisperModel
 import sounddevice as sd
 import numpy as np
 from threading import Thread, Event
@@ -21,8 +20,9 @@ def record_audio(duration: int) -> np.ndarray:
     print('recorded.')
     return recording
 
-def transcribe_audio(model: WhisperModel, audio: np.ndarray, beam_size: int) -> str:
-    segments, info = model.transcribe(audio=audio, beam_size=beam_size)
+def transcribe_audio(config: ConfigManager, audio: np.ndarray) -> str:
+    model_config = config.model_config
+    segments, info = model_config.model_sm.transcribe(audio=audio, beam_size=model_config.beam_size)
     print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
 
     transcribed_text = ''

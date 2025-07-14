@@ -30,8 +30,9 @@ class BiometricTemplateGenerator:
         assert audio.dtype == np.float32, "Audio must be float32"
         assert audio.ndim == 1, "Audio must be mono (1D ndarray)"
 
-        audio = self._ndarray_to_torch_float32(audio=audio)
+        # audio = self._ndarray_to_torch_float32(audio=audio)
         embedding = self.encoder.embed_utterance(audio)
+        np.save('./template/template_audio.npy', audio)
         np.save(self.config_mgr.biometric_config.template_path, embedding)
 
         return embedding
@@ -44,11 +45,11 @@ class BiometricTemplateGenerator:
         audio = None
         wd = False
 
-        while len(phrase) < self.config_mgr.biometric_config.audio_sample_required:
+        for _ in range(self.config_mgr.biometric_config.audio_sample_required):
             audio = detect_voice(config=self.config_mgr)
 
             # Temporary until wake_up model is created
-            audio_transcript = transcribe_audio(model=self.config_mgr.whisper_model_sm, audio=audio, beam_size=self.config_mgr.model_config.beam_size)
+            audio_transcript = transcribe_audio(config=self.config_mgr, audio=audio)
             wd = wad.wake_up_detection_stub(ip=audio_transcript)
 
             if wd:
@@ -86,7 +87,6 @@ class BiometricTemplateGenerator:
         similarity = np.dot(new_embedding_norm, self.template)
 
         print('Similarity: ', similarity)
-
         return similarity >= self.config_mgr.biometric_config.threshold
 
     def _normalize(self, embedding: np.ndarray) -> np.ndarray:

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from math import ceil
-from numpy import ndarray
+from faster_whisper import WhisperModel
 
 @dataclass
 class AudioConfig:
@@ -15,7 +15,8 @@ class WhisperModelConfig:
     model_size:str = 'small'
     device:str = 'cpu'
     compute_type:str = 'int8'
-    beam_size = 5
+    beam_size: int = 5
+    model_sm :WhisperModel | None = None
 
 
 @dataclass
@@ -28,6 +29,6 @@ class VADConfig:
 
 @dataclass
 class VoiceBiometricConfig:
-    template_path: str='./template/voice_template.npy'
-    audio_sample_required: int=3
-    threshold: float= 0.75
+    template_path: str = './template/voice_template.npy'
+    audio_sample_required: int = 1
+    threshold: float = 0.75
