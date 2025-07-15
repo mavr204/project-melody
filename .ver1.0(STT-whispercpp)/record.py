@@ -1,7 +1,6 @@
 import sounddevice as sd
 import numpy as np
 import scipy.io.wavfile as wav
-import matplotlib.pyplot as plt
 import os
 import datetime
 

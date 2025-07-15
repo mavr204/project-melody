@@ -1,6 +1,6 @@
 from rapidfuzz import fuzz
 
-def wake_up_detection_stub(ip:str):
+def wake_up_detection_stub(ip:str) -> bool:
     ip = ip.lower()
     phrase = 'melody'
         
