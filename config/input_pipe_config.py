@@ -24,7 +24,7 @@ class VADConfig:
     aggressiveness:int = 3
     sample_rate: int = 16_000
     frame_duration_ms = 30
-    silence_time = 1
+    silence_time = 0.5
     silence_counter_max = int(ceil(1/(frame_duration_ms/1000))) # frame_duration_ms/1000 = frame_duration in seconds
 
 @dataclass

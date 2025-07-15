@@ -8,21 +8,17 @@ def main():
     config_mgr = ConfigManager()
     biometric_template = BiometricTemplateGenerator(config_mgr=config_mgr)
 
-    # while True:
-    print('==================================================================')
-    voice = detect_voice(config=config_mgr)
+    while True:
+        print('==================================================================')
+        voice = detect_voice(config=config_mgr)
 
-    start = time.time()
-    # if wud.wake_up_detection_stub(ip=transcript) and biometric_template.match_embedding(voice):
-    if biometric_template.match_embedding(voice):
-        print(f"[+{time.time() - start:.2f}s] Biometric passed")
-        transcript = transcribe_audio(config=config_mgr, audio=voice)
-        print(transcript)
-    else:
-        print("Failed Auth or Failed Wake Up")
-        # continue
-
-    print('fck')
+        if wud.wake_up_detection_stub(ip=transcript) and biometric_template.match_embedding(voice):
+        # if biometric_template.match_embedding(voice):
+            transcript = transcribe_audio(config=config_mgr, audio=voice)
+            print(transcript)
+        else:
+            print("Failed Auth or Failed Wake Up")
+            continue
     
 
 if __name__ == "__main__":

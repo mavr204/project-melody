@@ -80,8 +80,8 @@ def voice_activity_detector(vad_config: VADConfig, audio_queue: queue.Queue, sto
                 if silence_frame_counter == 0:
                     print("Silence Detected")
                 silence_frame_counter += 1
-                if silence_frame_counter > vad_config.silence_counter_max:
 
+                if silence_frame_counter > vad_config.silence_counter_max:
                     stop_event.set()
                     print("VAD Stopped.")
                     return  byte_to_float32_audio(speech_buffer)
