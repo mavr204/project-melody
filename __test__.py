@@ -1,4 +1,2 @@
-from core.assistant import run_command
+from core.ring_buffer import RingBuffer
 
-
-run_command("open spotify")

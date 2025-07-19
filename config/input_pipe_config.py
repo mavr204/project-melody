@@ -26,6 +26,10 @@ class VADConfig:
     frame_duration_ms = 30
     silence_time = 0.5
     silence_counter_max = int(ceil(1/(frame_duration_ms/1000))) # frame_duration_ms/1000 = frame_duration in seconds
+    
+    window_size_sec: float = 1.5
+    stride : float = 1
+    buffer_size_sec: float = 5
 
 @dataclass
 class VoiceBiometricConfig:
