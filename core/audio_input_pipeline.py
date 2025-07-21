@@ -9,7 +9,6 @@ from core.VAD import SpeechVAD
 import stubs.wake_up_detection as wad
 from config.config_manager import ConfigManager
 from config.input_pipe_config import AudioConfig, VADConfig
-from core.ring_buffer import RingBuffer
 
 def record_audio(duration: int) -> np.ndarray:
     config = AudioConfig(duration=duration)
@@ -90,7 +89,6 @@ def voice_activity_detector(vad_config: VADConfig, audio_queue: queue.Queue, sto
 def detect_voice(config: ConfigManager) -> np.ndarray:
     # Variables shared between two threads
     audio_queue = queue.Queue()
-    audio_buffer = RingBuffer(config=config)
     stop_event = Event()
     
     recording_thread = Thread(target=record_audio_stream, args=(config.audio_config, audio_queue, stop_event))
