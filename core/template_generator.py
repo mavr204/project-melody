@@ -4,6 +4,9 @@ from resemblyzer import VoiceEncoder
 from config.config_manager import ConfigManager
 import stubs.wake_up_detection as wad
 from torch import tensor, float32, Tensor
+from utility import logger
+
+logger = logger.get_logger(__name__)
 
 class BiometricTemplateGenerator:
     _config_mgr = None
@@ -19,7 +22,7 @@ class BiometricTemplateGenerator:
             embedding = self._normalize(embedding=embedding)
             self._template = embedding
         else:
-            print("generating new embedding...")
+            ("generating new embedding...")
             embedding = self._get_new_embedding()
             self._template = self._normalize(embedding)
 
@@ -45,15 +48,15 @@ class BiometricTemplateGenerator:
         audio = None
         wd = False
 
-        for _ in range(self._config_mgr.biometric_config.audio_sample_required):
-            audio = detect_voice(config=self._config_mgr)
+        # for _ in range(self._config_mgr.biometric_config.audio_sample_required):
+        #     audio = detect_voice(config=self._config_mgr)
 
-            # Temporary until wake_up model is created
-            audio_transcript = transcribe_audio(config=self._config_mgr, audio=audio)
-            wd = wad.wake_up_detection_stub(ip=audio_transcript)
+        #     # Temporary until wake_up model is created
+        #     audio_transcript = transcribe_audio(config=self._config_mgr, audio=audio)
+        #     wd = wad.wake_up_detection_stub(ip=audio_transcript)
 
-            if wd:
-                phrase.append(audio)
+        #     if wd:
+        #         phrase.append(audio)
             
         return np.concatenate(phrase)
             
@@ -74,7 +77,7 @@ class BiometricTemplateGenerator:
     
     def match_embedding(self, audio: np.ndarray) -> bool:
         if self._template is None:
-            print("No Embedding Found")
+            logger.critical("No Embedding Found")
             return False
         
         assert audio.dtype == np.float32, "Audio must be float32"
@@ -86,7 +89,7 @@ class BiometricTemplateGenerator:
 
         similarity = np.dot(new_embedding_norm, self._template)
 
-        print('Similarity: ', similarity)
+        logger.info(f'Similarity: {similarity}')
         return similarity >= self._config_mgr.biometric_config.threshold
 
     def _normalize(self, embedding: np.ndarray) -> np.ndarray:

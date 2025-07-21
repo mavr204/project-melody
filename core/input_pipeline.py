@@ -1,5 +1,5 @@
 # Library
-from dataclasses import dataclass
+import sys
 import sounddevice as sd
 import numpy as np
 from threading import Thread, Event
@@ -74,6 +74,15 @@ class InputPipeline:
             if wake_up_checks.wake_up:
                 wake_up_checks.biometric_pass = self.voice_template.match_embedding()
 
+    def _process_audio_to_bytes(self) -> bytes:
+        try:
+            chunk = self.queue.get(timeout=5)
+            return (chunk * np.iinfo(np.int16).max).astype(np.int16).tobytes()
+        except queue.Empty:
+            logger.critical("Queue is empty, Exiting...")
+            self.stop_record_event.set()
+            sys.exit(1)
+
     def _voice_activity_detector(self) -> np.ndarray:
         vad_config = self._config.vad_config
         frame_size = int(vad_config.sample_rate * (vad_config.frame_duration_ms / 1000.0) * np.dtype(np.int16).itemsize) # 1000ms = 1s
@@ -88,13 +97,7 @@ class InputPipeline:
         
         logger.debug("VAD running...")
         while True:
-            try:
-                chunk = self.queue.get(timeout=5)
-            except queue.Empty:
-                logger.critical("Queue is empty")
-                return
-
-            audio_bytes = (chunk * np.iinfo(np.int16).max).astype(np.int16).tobytes()
+            audio_bytes = self._process_audio_to_bytes()
 
             for i in range(0, len(audio_bytes), frame_size):
                 frame = audio_bytes[i:i + frame_size]
@@ -115,7 +118,8 @@ class InputPipeline:
 
             if check_wake_up and not speech_detected:
                 if wake_up_audio.size < self._config.audio_config.sample_rate: # Collect at least 1 second (~16000 samples) of audio before running wake-up validation
-                    wake_up_audio = np.concatenate((wake_up_audio, chunk))
+                    # wake_up_audio = np.concatenate((wake_up_audio, chunk))
+                    pass
                 else:
                     check_wake_up = False
 
