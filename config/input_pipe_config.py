@@ -4,7 +4,7 @@ from faster_whisper import WhisperModel
 
 @dataclass
 class AudioConfig:
-    duration: int = 0.5
+    duration: int
     sample_rate: int = 16_000
     channels: int = 1
     dtype: str = 'float32'
@@ -25,7 +25,7 @@ class VADConfig:
     sample_rate: int = 16_000
     frame_duration_ms = 30
     silence_time = 0.5
-    silence_counter_max = int(ceil(1/(frame_duration_ms/1000))) # frame_duration_ms/1000 = frame_duration in seconds
+    silence_counter_max = int(ceil(1/(frame_duration_ms/1000))) # calculates the number of frames in 1 second, 1000ms = 1s
     
     window_size_sec: float = 1.5
     stride : float = 1
