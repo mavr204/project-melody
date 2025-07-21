@@ -7,9 +7,10 @@ class ConfigManager:
     model_config = None
 
     def __init__(self):
-        self.audio_config = AudioConfig()
-
         self.vad_config = VADConfig()
+        
+        audio_chunk_duration = (self.vad_config.frame_duration_ms / 1000) * 16 # Rcord chunks 16 times the size of the frames used in vad, 1000ms = 1s
+        self.audio_config = AudioConfig(duration=audio_chunk_duration)
         
         self.model_config = WhisperModelConfig()
         self.model_config.model_sm = self.load_model()
