@@ -25,6 +25,8 @@ class InputPipeline:
         self.queue = queue.Queue()
         self.stop_record_event = Event()
         self.voice_template = voice_template
+        self.vad = SpeechVAD(self._config.vad_config)
+        self.silence_frame_counter = 0
 
     def transcribe_audio(self, audio: np.ndarray) -> str:
         model_config = self._config.model_config
@@ -37,7 +39,7 @@ class InputPipeline:
             transcribed_text += segment.text
         return transcribed_text
     
-    def byte_to_float32_audio(self, byte_audio: list) -> np.ndarray:
+    def byte_to_float32_audio(self, byte_audio: list[bytes]) -> np.ndarray:
         return np.frombuffer(b''.join(byte_audio), dtype=np.int16).astype(np.float32) / np.iinfo(np.int16).max
     
     def _record_audio_stream(self) -> None:
@@ -68,7 +70,7 @@ class InputPipeline:
 
             self.queue.put(recording)
 
-    def _wake_up_validation(self, audio:np.ndarray, wake_up_checks: WakeUpChecks) -> None:
+    def wake_up_validation(self, audio:np.ndarray, wake_up_checks: WakeUpChecks) -> None:
             wake_up_checks.wake_up = wud.wake_up_detection_stub(ip=self.transcribe_audio(audio=audio))
 
             if wake_up_checks.wake_up:
@@ -83,57 +85,71 @@ class InputPipeline:
             self.stop_record_event.set()
             sys.exit(1)
 
-    def _voice_activity_detector(self) -> np.ndarray:
-        vad_config = self._config.vad_config
-        frame_size = int(vad_config.sample_rate * (vad_config.frame_duration_ms / 1000.0) * np.dtype(np.int16).itemsize) # 1000ms = 1s
-        speech_frames = []
+    def _voice_activity_detector(self, speech_frames: list[bytes]) -> bool:
+        audio_bytes = self._process_audio_to_bytes()
+        frame_size = int(self._config.audio_config.sample_rate * (self._config.vad_config.frame_duration_ms / 1000.0) * np.dtype(np.int16).itemsize) # 1000ms = 1s
         speech_detected = False
-        silence_frame_counter = 0
-        vad = SpeechVAD(vad_config)
-        check_wake_up = True
-        wake_up_audio = np.array([], dtype=np.float32)
+
+        for i in range(0, len(audio_bytes), frame_size):
+            frame = audio_bytes[i:i + frame_size]
+            if len(frame) < frame_size:
+                logger.error("Invalid Audio")
+                continue
+            if self.vad.isSpeech(frame):
+                speech_frames.append(frame)
+                speech_detected = True
+                self.silence_frame_counter = 0
+            elif speech_detected:
+                if self.silence_frame_counter == 0:
+                    logger.debug("Silence Detected")
+                self.silence_frame_counter += 1
+                
+                if self.silence_frame_counter > self._config.vad_config.silence_counter_max:
+                    speech_detected = False
+                    break
+        
+        silence_detected = self.silence_frame_counter >= self._config.vad_config.silence_counter_max
+        return speech_detected or (not silence_detected) # returns false when prolonged silence is detected from collected speech frames.
+
+    def _wake_up_detect(self) -> np.ndarray: 
+        speech_frames = []
+        check_wake = True
         wake_up_check_thread = None
         wake_up_checks = WakeUpChecks()
         
         logger.debug("VAD running...")
         while True:
-            audio_bytes = self._process_audio_to_bytes()
+            vad_active = self._voice_activity_detector(speech_frames=speech_frames)
 
-            for i in range(0, len(audio_bytes), frame_size):
-                frame = audio_bytes[i:i + frame_size]
-                if len(frame) < frame_size:
-                    logger.error("Invalid Audio")
-                    continue
-                if vad.isSpeech(frame):
-                    speech_frames.append(frame)
-                    speech_detected = True
-                    silence_frame_counter = 0
-                elif speech_detected:
-                    if silence_frame_counter == 0:
-                        logger.debug("Silence Detected")
-                    silence_frame_counter += 1
+            if len(speech_frames) >= 33 and check_wake:
+                audio = self.byte_to_float32_audio(speech_frames)
+                wake_up_check_thread = Thread(target=self.wake_up_validation, args=(audio, wake_up_checks))
+                wake_up_check_thread.start()
+                check_wake = False
+            
+            if vad_active == False:
+                if wake_up_check_thread:
+                    wake_up_check_thread.join()
+
+                if wake_up_checks.wake_up == False or wake_up_checks.biometric_pass == False:
+                    if wake_up_checks.biometric_pass == False:
+                        logger.warning('Biometric Failed!')
+                    else:        
+                        logger.warning('No wake up detected!')
                     
-                    if silence_frame_counter > vad_config.silence_counter_max:
-                        break
+                    # Reset the --make an appropriate comment
+                    speech_frames.clear()
+                    check_wake = True
+                    wake_up_checks = WakeUpChecks()
+                    continue
+                break
 
-            if check_wake_up and not speech_detected:
-                if wake_up_audio.size < self._config.audio_config.sample_rate: # Collect at least 1 second (~16000 samples) of audio before running wake-up validation
-                    # wake_up_audio = np.concatenate((wake_up_audio, chunk))
-                    pass
-                else:
-                    check_wake_up = False
+        return self.byte_to_float32_audio(speech_frames)
 
-                    wake_up_check_thread = Thread(target=self._wake_up_validation, args=(wake_up_audio, wake_up_checks)).start()
-
-            if silence_frame_counter > vad_config.silence_counter_max:
-                self.stop_record_event.set()
-                logger.debug("VAD Stopped.")
-                return self.byte_to_float32_audio(speech_frames)
-
-    def detect_voice(self) -> np.ndarray:
+    def get_command(self) -> np.ndarray:
         recording_thread = Thread(target=self._record_audio_stream)
         recording_thread.start()
 
-        wake_word_detected = self._voice_activity_detector()
+        wake_word_detected = self._wake_up_detect()
         recording_thread.join()
         return wake_word_detected
