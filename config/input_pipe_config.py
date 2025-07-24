@@ -34,5 +34,5 @@ class VADConfig:
 @dataclass
 class VoiceBiometricConfig:
     template_path: str = './template/voice_template.npy'
-    audio_sample_required: int = 1
+    audio_sample_required: int = 3
     threshold: float = 0.75

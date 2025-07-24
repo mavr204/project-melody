@@ -1,0 +1,36 @@
+### 🛠️ To-Do (what you *said* you plan to do):
+
+1. **Input Pipeline Improvements**
+
+   * Build a proper thread manager.
+   * Build a queue manager.
+   * Add custom errors (for better debugging & control).
+   * Handle template-related exceptions better (e.g., save failure, encryption error, etc.).
+
+2. **Audio Processing**
+
+   * Preprocess audio (remove low-frequency/background noise).
+   * Add proper audio filters.
+
+3. **Wake Word System**
+
+   * Build a dedicated wake-word detection model.
+   * Move beyond hardcoded one-shot logic.
+
+4. **Security**
+
+   * Encrypt the stored template.
+   * Lock down file access (`chmod`, etc.).
+   * Possibly hash + verify integrity of templates.
+
+5. **Template Management**
+
+   * Implement **template improvement** (adaptive enrollment after successful wakeups).
+   * Possibly use a running average or sliding buffer.
+   * Store and update count of successful embeddings (`n`).
+   * Log or audit template changes.
+
+6. **Natural Language Understanding (NLU)**
+
+   * Build the NLU system to handle more than just `"play music"`.
+   * Smart follow-up and context awareness.
