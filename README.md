@@ -43,6 +43,9 @@ Melody can currently:
 * `rapidfuzz`
 * `torch` (for Resemblyzer)
 * `subprocess` (standard library)
+* `cryptography`
+* `keyring`
+* `appdirs`
 
 ---
 

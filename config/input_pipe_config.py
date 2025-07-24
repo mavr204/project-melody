@@ -1,6 +1,38 @@
 from dataclasses import dataclass
 from math import ceil
+import os
+import sys
 from faster_whisper import WhisperModel
+from appdirs import user_data_dir
+from utility.logger import get_logger
+
+logger = get_logger(__name__)
+
+class BasicInfo:
+    def __init__(self):
+        self._app_name = 'Melody'
+        self._author_name = 'mav204'
+        try:
+            self._usr_data_dir = user_data_dir(appname=self._app_name, appauthor=self._author_name)
+            os.makedirs(self._usr_data_dir, exist_ok=True)
+        except PermissionError:
+            logger.critical("Permission denied when creating user data directory.")
+            sys.exit(1)
+        except OSError as e:
+            logger.critical(f"Failed to create user data directory: {e}")
+            sys.exit(1)
+    
+    @property
+    def app_name(self):
+        return self._app_name
+    
+    @property
+    def author_name(self):
+        return self._author_name
+    
+    @property
+    def usr_data_dir(self):
+        return self._usr_data_dir
 
 @dataclass
 class AudioConfig:
@@ -33,6 +65,23 @@ class VADConfig:
 
 @dataclass
 class VoiceBiometricConfig:
-    template_path: str = './template/voice_template.npy'
     audio_sample_required: int = 3
     threshold: float = 0.75
+    encrypt_key_length = 256
+    nonce_bytes = 12 # generates a 12 nonce | AES-GCM standadizes a 12 byte nonce
+
+    def get_file_name(self, username: str) -> str:
+        return f"biometric_template_{username}.enc"
+    
+    def get_file_pattern(self) -> tuple:
+        dummy_username = 'usr'
+        file = self.get_file_name(dummy_username)
+
+        return tuple(file.split(dummy_username))
+    
+    def extract_username(self, filename: str) -> str:
+        prefix, suffix = self.get_file_pattern()
+        if filename.startswith(prefix) and filename.endswith(suffix):
+            return filename[len(prefix):-len(suffix)]
+        else:
+            raise ValueError("Invalid template filename format.")

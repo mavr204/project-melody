@@ -1,4 +1,4 @@
-### 🛠️ To-Do (what you *said* you plan to do):
+### 🛠️ To-Do:
 
 1. **Input Pipeline Improvements**
 
@@ -19,7 +19,7 @@
 
 4. **Security**
 
-   * Encrypt the stored template.
+   * Encrypt the stored template. ⭕
    * Lock down file access (`chmod`, etc.).
    * Possibly hash + verify integrity of templates.
 
@@ -34,3 +34,26 @@
 
    * Build the NLU system to handle more than just `"play music"`.
    * Smart follow-up and context awareness.
+
+🔁 dev-template-improvements
+Template encryption
+
+Auto-template update after successful auth
+
+Anything directly related to the biometric flow and storage
+
+🔊 dev-audio-processing
+Noise suppression / filtering low frequencies
+
+Audio pre-cleaning to avoid false triggers
+
+Maybe basic denoising logic if you’re planning to add it
+
+🧩 dev-misc
+Custom error classes
+
+Thread manager
+
+Queue manager
+
+Any small refactors, logging tweaks, helper utils
