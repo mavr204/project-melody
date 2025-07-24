@@ -1,43 +1,70 @@
 # Melody
 
-**Melody** is a work-in-progress voice assistant built with Python.
+**Melody** is a work-in-progress voice assistant built in Python.
+It focuses on privacy-first, local-first voice interaction — no cloud APIs, no telemetry.
 
-So far, it can:
-- Record audio
-- Detect speech using Voice Activity Detection (VAD) using `webrtcvad`
-- Process the audio using `rapidfuzz` to detect wakeup word
-- Biometric checking with `resemblyzer` to verify user
-- Transcribe speech to text using `faster-whisper`
-- Using `subprocess` to run the command
+---
+
+## Current Capabilities
+
+Melody can currently:
+
+* Record audio from the microphone.
+* Detect speech using `webrtcvad`.
+* Detect wake word using fuzzy matching (`rapidfuzz`).
+* Verify speaker identity via biometric matching using `resemblyzer`.
+* Transcribe speech to text using `faster-whisper`.
+* Execute simple system commands via `subprocess`.
 
 ---
 
 ## Features
-- ✅ Voice recording (mono, WAV)
-- ✅ Voice Activity Detection (WebRTC VAD)
-- ✅ Speech-to-text transcription (faster-whisper)
-- ✅ Configurable audio pipeline using dataclasses
-- ✅ Wake up word detection using partial fuzzy matching
-- ✅ Biometric verification using `resemblyzer`
+
+* ✅ Voice recording (mono WAV, float32)
+* ✅ Voice Activity Detection (WebRTC VAD)
+* ✅ Wake word detection with fuzzy matching
+* ✅ Biometric verification (Resemblyzer)
+* ✅ Offline transcription (`faster-whisper`)
+* ✅ Modular audio pipeline (dataclass-driven)
+* ✅ One-shot command support (e.g., "melody, play music")
+* ✅ Persistent biometric template with validation
 
 ---
 
 ## Requirements
-- `Python 3.10+`
-- `sounddevice`
-- `numpy`
-- `scipy`
-- `faster-whisper`
-- `webrtcvad`
-- `resemblyzer`
-- `rapidfuzz`
-- `subprocess`
+
+* `Python 3.10+`
+* `numpy`
+* `scipy`
+* `sounddevice`
+* `faster-whisper`
+* `webrtcvad`
+* `resemblyzer`
+* `rapidfuzz`
+* `torch` (for Resemblyzer)
+* `subprocess` (standard library)
 
 ---
 
-## Future
-- Add better audio processing and parallel processing, for better user experience
-- Change `resemblyzer` to something faster, possibly an `ECAPA-TDNN` model. Maybe from speechbrain.
-- Build a custom model for wake up word detection, so transcription is not needed for the wake word. Improving performance.
-- Build intent detection, possibly using NLU. To improve seemless conversation.
-- Better command processing.
+## Roadmap / Planned
+
+* 🎯 **Audio Preprocessing**
+  Filter low-frequency noise, suppress background sounds.
+
+* 🎯 **Wake Word Model**
+  Replace fuzzy matching with a lightweight neural model (no transcription required).
+
+* 🎯 **Biometric Model Upgrade**
+  Move to `ECAPA-TDNN` (e.g., from SpeechBrain) for faster and more robust voice verification.
+
+* 🎯 **NLU / Intent Detection**
+  Basic NLU for flexible and natural command interpretation.
+
+* 🎯 **Command Engine Overhaul**
+  Move from raw `subprocess` calls to a structured and extensible command execution layer.
+
+* 🎯 **Thread + Queue Management**
+  Better concurrency model for smoother pipeline execution.
+
+* 🎯 **Template Improvement**
+  Update biometric template passively on successful activations.

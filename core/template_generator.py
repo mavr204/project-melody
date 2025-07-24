@@ -1,65 +1,49 @@
 import numpy as np
 from resemblyzer import VoiceEncoder
-from core.audio_input_pipeline import transcribe_audio, detect_voice
 from config.config_manager import ConfigManager
-import stubs.wake_up_detection as wad
 from torch import tensor, float32, Tensor
+from utility import logger
+
+logger = logger.get_logger(__name__)
 
 class BiometricTemplateGenerator:
-    config_mgr = None
-    encoder = None
-    template = None
+    def __init__(self, config_mgr: ConfigManager):
+        self._config_mgr = config_mgr
+        self._encoder = VoiceEncoder()
+        self._template = self._load_embedding()
+        self._is_template = False if self._template is None else True
 
-    def __init__(self, config_mgr: ConfigManager, gen_template: bool = False):
-        self.config_mgr = config_mgr
-        self.encoder = VoiceEncoder()
-        embedding = self._load_embedding()
+    @property
+    def is_template(self) -> bool:
+        return self._is_template
+
+    def get_new_template(self, audio_list: list[np.ndarray]) -> None:
+
+        for audio in audio_list:
+            assert audio.dtype == np.float32, "Audio must be float32"
+            assert audio.ndim == 1, "Audio must be mono (1D ndarray)"
+
+        embeddings = [
+            self._normalize(self._encoder.embed_utterance(audio))
+            for audio in audio_list
+        ]
+
         
-        if embedding is not None and not gen_template:
-            embedding = self._normalize(embedding=embedding)
-            self.template = embedding
-        else:
-            print("generating new embedding...")
-            embedding = self._get_new_embedding()
-            self.template = self._normalize(embedding)
+        self._template = np.mean(np.stack(embeddings), axis=0)
+        self._is_template = True
 
-    def _get_new_embedding(self) -> np.ndarray:
-        
-        audio = self._get_audio()
-
-        assert audio.dtype == np.float32, "Audio must be float32"
-        assert audio.ndim == 1, "Audio must be mono (1D ndarray)"
-
-        # audio = self._ndarray_to_torch_float32(audio=audio)
-        embedding = self.encoder.embed_utterance(audio)
-        np.save('./template/template_audio.npy', audio)
-        np.save(self.config_mgr.biometric_config.template_path, embedding)
-
-        return embedding
+        try:
+            np.save(self._config_mgr.biometric_config.template_path, self._template)
+            logger.info("New biometric template generated and saved.")
+        except (OSError, IOError) as e:
+            logger.error(f"Failed to save template: {e}")
 
     def _ndarray_to_torch_float32(self, audio: np.ndarray) -> Tensor:
         return tensor(audio, dtype=float32)
-    
-    def _get_audio(self) -> np.ndarray:
-        phrase = []
-        audio = None
-        wd = False
-
-        for _ in range(self.config_mgr.biometric_config.audio_sample_required):
-            audio = detect_voice(config=self.config_mgr)
-
-            # Temporary until wake_up model is created
-            audio_transcript = transcribe_audio(config=self.config_mgr, audio=audio)
-            wd = wad.wake_up_detection_stub(ip=audio_transcript)
-
-            if wd:
-                phrase.append(audio)
-            
-        return np.concatenate(phrase)
-            
+           
     def _load_embedding(self) -> np.ndarray:
         try:
-            embedding = np.load(self.config_mgr.biometric_config.template_path)
+            embedding = np.load(self._config_mgr.biometric_config.template_path)
         except (FileNotFoundError, IOError, ValueError) as e:
             return None 
 
@@ -70,24 +54,24 @@ class BiometricTemplateGenerator:
         if embedding.shape != (EMBEDDING_SIZE,) or embedding.dtype != np.float32:
             return None
 
-        return embedding
+        return self._normalize(embedding)
     
     def match_embedding(self, audio: np.ndarray) -> bool:
-        if self.template is None:
-            print("No Embedding Found")
+        if self._template is None:
+            logger.critical("No Embedding Found")
             return False
         
         assert audio.dtype == np.float32, "Audio must be float32"
         assert audio.ndim == 1, "Audio must be mono (1D ndarray)"
 
         # audio = self._ndarray_to_torch_float32(audio=audio)
-        new_embedding = self.encoder.embed_utterance(audio)
+        new_embedding = self._encoder.embed_utterance(audio)
         new_embedding_norm = self._normalize(new_embedding)
 
-        similarity = np.dot(new_embedding_norm, self.template)
+        similarity = np.dot(new_embedding_norm, self._template)
 
-        print('Similarity: ', similarity)
-        return similarity >= self.config_mgr.biometric_config.threshold
+        logger.info(f'Similarity: {similarity}')
+        return similarity >= self._config_mgr.biometric_config.threshold
 
     def _normalize(self, embedding: np.ndarray) -> np.ndarray:
         norm = np.linalg.norm(embedding)
