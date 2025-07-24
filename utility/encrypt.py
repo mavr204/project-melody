@@ -1,5 +1,6 @@
 import os
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import keyring.errors
 from config.config_manager import ConfigManager
 from utility.logger import get_logger
 import keyring

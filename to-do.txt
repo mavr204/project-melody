@@ -19,15 +19,15 @@
 
 4. **Security**
 
-   * Encrypt the stored template. ⭕
-   * Lock down file access (`chmod`, etc.).
-   * Possibly hash + verify integrity of templates.
+   * Encrypt the stored template. ✅
+   * Lock down file access (`chmod`, etc.).✅
+   * Possibly hash + verify integrity of templates.✅
 
 5. **Template Management**
 
    * Implement **template improvement** (adaptive enrollment after successful wakeups).
+   * clear template, new template
    * Possibly use a running average or sliding buffer.
-   * Store and update count of successful embeddings (`n`).
    * Log or audit template changes.
 
 6. **Natural Language Understanding (NLU)**
@@ -36,7 +36,7 @@
    * Smart follow-up and context awareness.
 
 🔁 dev-template-improvements
-Template encryption
+Template encryption ✅
 
 Auto-template update after successful auth
 
@@ -50,7 +50,7 @@ Audio pre-cleaning to avoid false triggers
 Maybe basic denoising logic if you’re planning to add it
 
 🧩 dev-misc
-Custom error classes
+Custom error classes ⭕
 
 Thread manager
 
