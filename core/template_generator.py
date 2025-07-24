@@ -5,111 +5,137 @@ from torch import tensor, float32, Tensor
 from utility import logger
 from utility.encrypt import CryptManager
 import os
+import utility.errors as err
 
 logger = logger.get_logger(__name__)
 
 class BiometricTemplateGenerator:
+    _EMBEDDING_SIZE = 256
     def __init__(self, config_mgr: ConfigManager):
         self._config_mgr = config_mgr
         self._crypt_mgr = CryptManager(config=config_mgr)
-        self._encoder = VoiceEncoder()
-        self._template = self._load_embedding()
-        self._is_template = False if len(self._template) == 0 else True
+
+        try:
+            self._encoder = VoiceEncoder()
+        except Exception as e:
+            logger.critical(f"VoiceEncoder init failed: {e}")
+            raise err.BiometricError("Failed to initialize encoder")
+        
+        self._template: dict[str, np.ndarray] = self._load_embedding()
 
     @property
     def is_template(self) -> bool:
-        return self._is_template
+        return bool(self._template)
 
     def get_new_template(self, audio_list: list[np.ndarray]) -> None:
 
         for audio in audio_list:
-            assert audio.dtype == np.float32, "Audio must be float32"
-            assert audio.ndim == 1, "Audio must be mono (1D ndarray)"
+            try:
+                assert audio.dtype == np.float32, "Audio must be float32"
+                assert audio.ndim == 1, "Audio must be mono (1D ndarray)"
+            except AssertionError as e :
+                raise err.BiometricError(str(e)) 
 
-        embeddings = [
-            self._normalize(self._encoder.embed_utterance(audio))
-            for audio in audio_list
-        ]
-
-        if not embeddings:
-            logger.critical("No embeddings generated.")
-            raise Exception
+        try:
+            embeddings = [
+                self._normalize(self._encoder.embed_utterance(audio))
+                for audio in audio_list
+            ]
+        except Exception as e:
+            logger.critical(f"Bad Audio.:{e} Stoppting template generation...")
+            return
 
         try:
             template = np.mean(np.stack(embeddings), axis=0)
-        except Exception as e:
-            logger.error(f"Failed to compute template from embeddings: {e}")
-            raise
+        except (ValueError, TypeError):
+            raise err.TemplateGenerationError("Failed to create template from embeddings")
         
         if not isinstance(template, np.ndarray):
-            logger.error("Template is not a valid ndarray.")
-            raise Exception
+            raise err.TemplateGenerationError("Generated template is not valid")
 
-        username=input('Enter Username: ')
+        while True:
+            username=input('Enter Username: ').strip()
+            if username in self._template:
+                logger.warning("Template for this username already exists and will be overwritten.")
+            if username:
+                break
+            logger.error("Invalid Username! Try again...")
+                
+
 
         self._is_template = True
         self._template[username] = template
 
         self._save_template(username=username)
-    
-    def _save_template(self, username: str):
-        try:
-            filename = os.path.join(self._config_mgr.basic_info.usr_data_dir,
-                                    self._config_mgr.biometric_config.get_file_name(username=username))
-            
-            cipher = self._crypt_mgr.encrypt(self._template[username].tobytes())
+                
+    def _save_template(self, username: str) -> None:
+        for attempt_num in range(3): # Tries to save the template 3 times
+            try:
+                filename = os.path.join(self._config_mgr.basic_info.usr_data_dir,
+                                        self._config_mgr.biometric_config.get_file_name(username=username))
+                
+                cipher = self._crypt_mgr.encrypt(self._template[username].tobytes())
 
-            with open(filename, 'wb') as f:
-                f.write(cipher)
-            logger.info("New biometric template generated and saved.")
+                with open(filename, 'wb') as f:
+                    f.write(cipher)
+                logger.info("New biometric template generated and saved.")
 
-        except (OSError, IOError) as e:
-            logger.error(f"Failed to save template: {e}")
-
-    def _ndarray_to_torch_float32(self, audio: np.ndarray) -> Tensor:
-        return tensor(audio, dtype=float32)
+            except (OSError, IOError):
+                if attempt_num < 2:
+                    logger.error(f"Could not save template. Failed Attempt: {attempt_num+1}. Retrying...")
+                else:
+                    raise err.FileAccessError(f"Failed write on Disk. After {attempt_num+1}")
            
     def _load_embedding(self) -> dict[str, np.ndarray]:
         file_list = self._get_template_files(self._config_mgr.basic_info.usr_data_dir)
         dic = {}
-        EMBEDDING_SIZE = 256
         for file_name in file_list:
             try:
                 with open(os.path.join(self._config_mgr.basic_info.usr_data_dir, file_name), 'rb') as file_content:
                     decrypted = self._crypt_mgr.decrypt(file_content.read())
                     embedding = np.frombuffer(decrypted, dtype=np.float32)
-                    embedding = embedding.reshape((EMBEDDING_SIZE,)) 
+                    embedding = embedding.reshape((self._EMBEDDING_SIZE,)) 
                     username = self._config_mgr.biometric_config.extract_username(file_name)
                     dic[username] = self._normalize(embedding)
             except (FileNotFoundError, IOError, ValueError) as e:
-                return {}
-
-            if not isinstance(embedding, np.ndarray):
-                return {}
+                logger.warning(f"Skipping file {file_name} due to error: {e}")
+                continue
             
-            if embedding.shape != (EMBEDDING_SIZE,) or embedding.dtype != np.float32:
-                return {}
+            try:
+                if not isinstance(embedding, np.ndarray) or embedding.shape != (self._EMBEDDING_SIZE,) or embedding.dtype != np.float32:
+                    raise err.BiometricError("Invalid template")
+            except err.BiometricError as e:
+                logger.warning(f"Skipping file {file_name} due to error: {e}")
+                continue
 
         return dic
     
     def match_embedding(self, audio: np.ndarray) -> bool:
-        if self._template is None:
+        if len(self._template) == 0:
             logger.critical("No Embedding Found")
             return False
         
-        assert audio.dtype == np.float32, "Audio must be float32"
-        assert audio.ndim == 1, "Audio must be mono (1D ndarray)"
+        try:
+            assert audio.dtype == np.float32, "Audio must be float32"
+            assert audio.ndim == 1, "Audio must be mono (1D ndarray)"
+        except AssertionError as e:
+            logger.error(f"Invalid Audio data: {e}")
+            return False
 
         
-        new_embedding = self._encoder.embed_utterance(audio)
-        new_embedding_norm = self._normalize(new_embedding)
+        try:
+            new_embedding = self._encoder.embed_utterance(audio)
+            new_embedding_norm = self._normalize(new_embedding)
+        except Exception as e:
+            logger.error(f"Embedding generation failed: {e}")
+            return False
 
         for username in self._template:
             similarity = np.dot(new_embedding_norm, self._template[username])
 
             if similarity >= self._config_mgr.biometric_config.threshold:
-                logger.info(f'Similarity: {similarity}')
-                logger.info(f'Matched with: {username}')
+                logger.debug(f'Similarity: {similarity}')
+                logger.debug(f'Matched with: {username}')
                 return True
         
         return False
@@ -125,12 +151,8 @@ class BiometricTemplateGenerator:
 
         try:
             files = os.listdir(dir_path)
-        except FileNotFoundError:
-            raise Exception
-        except PermissionError:
-            raise Exception
-        except OSError:
-            raise Exception
+        except (FileNotFoundError, OSError, PermissionError):
+            raise err.FileAccessError("Template Files could not be accessed")
 
         return [
             f for f in files

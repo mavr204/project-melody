@@ -11,6 +11,7 @@ from core.template_generator import BiometricTemplateGenerator
 import stubs.wake_up_detection as wud
 from config.config_manager import ConfigManager
 from utility.logger import get_logger
+import utility.errors as err
 
 class WakeUpChecks:
     def __init__(self):
@@ -42,17 +43,22 @@ class InputPipeline:
             logger.info("Stopped all children threads!")
 
     def transcribe_audio(self, audio: np.ndarray) -> str:
-        model_config = self._config.model_config
-        segments, info = model_config.model_sm.transcribe(audio=audio, beam_size=model_config.beam_size)
-        logger.info(f"Detected language '{info.language}' with probability {info.language_probability}")
+        try:
+            model_config = self._config.model_config
+            segments, info = model_config.model_sm.transcribe(audio=audio, beam_size=model_config.beam_size)
+            logger.info(f"Detected language '{info.language}' with probability {info.language_probability}")
 
-        transcribed_text = ''
-        for i, segment in enumerate(segments):
-            logger.info(f"[{segment.start:.2f}s -> {segment.end:.2f}s]: Segment {i+1}")
-            transcribed_text += segment.text
-        return transcribed_text
+            transcribed_text = ''
+            for i, segment in enumerate(segments):
+                logger.info(f"[{segment.start:.2f}s -> {segment.end:.2f}s]: Segment {i+1}")
+                transcribed_text += segment.text
+            return transcribed_text
+        except Exception as e:
+            raise err.TranscriptionError("Failed to transcribe Audio") from e
     
     def byte_to_float32_audio(self, byte_audio: list[bytes]) -> np.ndarray:
+        if not byte_audio:
+            raise err.InvalidAudioError("Byte audio is not valid")
         return np.frombuffer(b''.join(byte_audio), dtype=np.int16).astype(np.float32) / np.iinfo(np.int16).max
     
     def _record_audio_stream(self) -> None:
@@ -64,24 +70,27 @@ class InputPipeline:
         if config.audio_config.channels != 1: # Checks if the audio is mono 
             raise ValueError("Only mono audio (1 channel) supported for VAD.")
         
-        # Discard first frame to remove startup noise
-        sd.rec(frames=frame_samples,
-               samplerate=config.audio_config.sample_rate, 
-               channels=config.audio_config.channels, 
-               dtype=config.audio_config.dtype)
-        sd.wait()
-
-        logger.debug("Starting recording...")
-        while not self.stop_events["AudioStreamThread"].is_set():
-            recording = sd.rec(frames=frame_samples,
-                               samplerate=config.audio_config.sample_rate,
-                               channels=config.audio_config.channels,
-                               dtype=config.audio_config.dtype)
+        try:
+            # Discard first frame to remove startup noise
+            sd.rec(frames=frame_samples,
+                samplerate=config.audio_config.sample_rate, 
+                channels=config.audio_config.channels, 
+                dtype=config.audio_config.dtype)
             sd.wait()
-            recording = recording.flatten()
-            self.queue.put(recording)
 
-        self.queue = queue.Queue()
+            logger.debug("Starting recording...")
+            while not self.stop_events["AudioStreamThread"].is_set():
+                recording = sd.rec(frames=frame_samples,
+                                samplerate=config.audio_config.sample_rate,
+                                channels=config.audio_config.channels,
+                                dtype=config.audio_config.dtype)
+                sd.wait()
+                recording = recording.flatten()
+                self.queue.put(recording)
+        except Exception as e:
+            raise err.AudioStreamError("There was an Error recording audio...") from e
+
+            self.queue = queue.Queue()
 
     def wake_up_validation(self, audio:np.ndarray, wake_up_checks: WakeUpChecks) -> None:
             transcript = self.transcribe_audio(audio=audio)
@@ -140,7 +149,7 @@ class InputPipeline:
         while True:
             vad_active = self._voice_activity_detector(speech_frames=speech_frames)
 
-            if len(speech_frames) >= 15 and check_wake:
+            if len(speech_frames) >= self._config.vad_config.check_wake_after_frames and check_wake:
                 audio = self.byte_to_float32_audio(speech_frames)
                 wake_up_check_thread = Thread(target=self.wake_up_validation, args=(audio, wake_up_checks))
                 wake_up_check_thread.start()
@@ -179,7 +188,7 @@ class InputPipeline:
 
     def get_command(self) -> np.ndarray:
         if self.voice_template.is_template == False:
-            raise RuntimeError("No biometric template found or loaded!")
+            raise err.TemplateLoadError("No biometric template found or loaded!")
 
         recording_thread = self._start_recording_thread()
         audio = self._wake_up_detect()
@@ -218,4 +227,3 @@ class InputPipeline:
         self._stop_thread(recording_thread)
         return audio_samples
     
-    # create a thread manager and maybe even a queue manager and deal with magic number 33
