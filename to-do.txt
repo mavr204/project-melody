@@ -38,9 +38,9 @@
 🔁 dev-template-improvements
 Template encryption ✅
 
-Auto-template update after successful auth
+Auto-template update after successful auth ⭕
 
-Anything directly related to the biometric flow and storage
+Anything directly related to the biometric flow and storage ⭕
 
 🔊 dev-audio-processing
 Noise suppression / filtering low frequencies
@@ -52,8 +52,8 @@ Maybe basic denoising logic if you’re planning to add it
 🧩 dev-misc
 Custom error classes ✅
 
-Thread manager ⭕
+Thread manager ✅
 
-Queue manager ⭕
+Queue manager ❌
 
-Any small refactors, logging tweaks, helper utils
+Any small refactors, logging tweaks, helper utils ✅

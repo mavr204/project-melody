@@ -12,7 +12,7 @@ import stubs.wake_up_detection as wud
 from config.config_manager import ConfigManager
 from utility.logger import get_logger
 import utility.errors as err
-from utility.thread_manager import ThreadManager
+from utility.thread_manager import ThreadManager, ThreadStatus
 
 class WakeUpChecks:
     def __init__(self):
@@ -154,7 +154,7 @@ class InputPipeline:
                 check_wake = False
             
             if vad_active == False:
-                if wake_up_check_thread:
+                if self.thread_manager.get_thread_status(wake_up_check_thread) != ThreadStatus.NOT_FOUND:
                     self.thread_manager.stop_thread(wake_up_check_thread)
 
                 if wake_up_checks.wake_up == False or wake_up_checks.biometric_pass == False:
