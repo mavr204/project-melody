@@ -38,6 +38,10 @@ class TranscriptionError(InputPipelineError):
     def __init__(self, *args):
         super().__init__(*args)
 
+class WakeUpError(InputPipelineError):
+    def __init__(self, *args):
+        super().__init__(*args)
+
 class FileAccessError(Exception):
     def __init__(self, *args):
         super().__init__(*args)
@@ -50,3 +54,6 @@ class ThreadNotFoundError(ThreadError):
     def __init__(self, *args):
         super().__init__(*args)
 
+class ThreadAlreadyExistsError(ThreadError):
+    def __init__(self, *args):
+        super().__init__(*args)

@@ -12,6 +12,7 @@ import stubs.wake_up_detection as wud
 from config.config_manager import ConfigManager
 from utility.logger import get_logger
 import utility.errors as err
+from utility.thread_manager import ThreadManager
 
 class WakeUpChecks:
     def __init__(self):
@@ -21,26 +22,15 @@ class WakeUpChecks:
 logger = get_logger(__name__)
 
 class InputPipeline:
+    _STREAM_THREAD_NAME = 'AudioStreamThread'
+
     def __init__(self, config:ConfigManager, voice_template: BiometricTemplateGenerator):
         self._config = config
         self.queue = queue.Queue()
-        self.stop_events:dict[str, Event] = {}
+        self.thread_manager = ThreadManager()
         self.voice_template = voice_template
         self.vad = SpeechVAD(self._config.vad_config)
         self.silence_frame_counter = 0
-
-    def _kill_all_child_threads(self) -> None:
-        active_threads = thread_enumerate()
-        if len(active_threads) == 0:
-            logger.info("no child thread active")
-        else:
-            for _, event in self.stop_events.items():
-                if not event.is_set():
-                    event.set()
-            for t in active_threads:
-                if t.name in self.stop_events:
-                    t.join()
-            logger.info("Stopped all children threads!")
 
     def transcribe_audio(self, audio: np.ndarray) -> str:
         try:
@@ -79,7 +69,11 @@ class InputPipeline:
             sd.wait()
 
             logger.debug("Starting recording...")
-            while not self.stop_events["AudioStreamThread"].is_set():
+            stop_event = self.thread_manager.active_threads.get(self._STREAM_THREAD_NAME).stop_event
+            if stop_event is None:
+                logger.critical(f"The stream must be run on {self._STREAM_THREAD_NAME}")
+                raise err.AudioStreamError("Failed to stream audio")
+            while not stop_event.is_set():
                 recording = sd.rec(frames=frame_samples,
                                 samplerate=config.audio_config.sample_rate,
                                 channels=config.audio_config.channels,
@@ -89,8 +83,6 @@ class InputPipeline:
                 self.queue.put(recording)
         except Exception as e:
             raise err.AudioStreamError("There was an Error recording audio...") from e
-
-            self.queue = queue.Queue()
 
     def wake_up_validation(self, audio:np.ndarray, wake_up_checks: WakeUpChecks) -> None:
             transcript = self.transcribe_audio(audio=audio)
@@ -151,16 +143,22 @@ class InputPipeline:
 
             if len(speech_frames) >= self._config.vad_config.check_wake_after_frames and check_wake:
                 audio = self.byte_to_float32_audio(speech_frames)
-                wake_up_check_thread = Thread(target=self.wake_up_validation, args=(audio, wake_up_checks))
-                wake_up_check_thread.start()
+
+                wake_up_check_thread = self.thread_manager.create_new_thread(target=self.wake_up_validation,
+                                                                            args=(audio, wake_up_checks),
+                                                                            name="WakeCheckThread",
+                                                                            autostart=True)
+                if wake_up_check_thread is None:
+                    raise err.WakeUpError("Could not check for Error!")
+                        
                 check_wake = False
             
             if vad_active == False:
                 if wake_up_check_thread:
-                    wake_up_check_thread.join()
+                    self.thread_manager.stop_thread(wake_up_check_thread)
 
                 if wake_up_checks.wake_up == False or wake_up_checks.biometric_pass == False:
-                    if wake_up_checks.wake_up == False:
+                    if not wake_up_checks.wake_up:
                         logger.warning('No wake up detected!')
                     else:        
                         logger.warning('Biometric Failed!')
@@ -173,38 +171,42 @@ class InputPipeline:
 
         return self.byte_to_float32_audio(speech_frames)
 
-    def _start_recording_thread(self) -> Thread:
-        recording_thread = Thread(target=self._record_audio_stream, name="AudioStreamThread")
-        self.stop_events[recording_thread.name] = Event()
-        recording_thread.start()
-
-        return recording_thread
-
-    def _stop_thread(self, thread: Thread) -> None:
-        if not self.stop_events[thread.name].is_set():
-            self.stop_events[thread.name].set()
-        thread.join()
-        del self.stop_events[thread.name]
-
     def get_command(self) -> np.ndarray:
-        if self.voice_template.is_template == False:
+        if not self.voice_template.is_template:
             raise err.TemplateLoadError("No biometric template found or loaded!")
 
-        recording_thread = self._start_recording_thread()
+
+        recording_thread = self.thread_manager.create_new_thread(target=self._record_audio_stream,
+                                                                name=self._STREAM_THREAD_NAME,
+                                                                autostart=True)
+        
+        if recording_thread is None:
+            raise err.AudioStreamError("Audio could not be streamed")
+
         audio = self._wake_up_detect()
 
-        self._stop_thread(recording_thread)
+        try:
+            self.thread_manager.stop_thread(recording_thread)
+        except err.ThreadNotFoundError as e:
+            logger.critical(f"Audio Not recorded: {e}")
+            return np.array([], dtype=np.float32)
 
+        self.queue = queue.Queue() # Reset the Queue
         return audio
     
     def get_template_audio(self) -> list[np.ndarray]:
         speech_frames: list[bytes] = []
         audio_samples_count = 0
         audio_samples: list[np.ndarray] = []
-        self._kill_all_child_threads()
+        self.thread_manager.stop_all_threads()
 
         logger.info("Recording Info for Template generation...")
-        recording_thread = self._start_recording_thread()
+        recording_thread = self.thread_manager.create_new_thread(target=self._record_audio_stream,
+                                                                name=self._STREAM_THREAD_NAME,
+                                                                autostart=True)
+        
+        if recording_thread is None:
+            raise err.AudioStreamError("Audio could not be streamed")
 
         logger.debug("VAD running...")
         while audio_samples_count < self._config.biometric_config.audio_sample_required:
@@ -224,6 +226,12 @@ class InputPipeline:
                 
                 speech_frames.clear()
         
-        self._stop_thread(recording_thread)
+        try:
+            self.thread_manager.stop_thread(recording_thread)
+        except err.ThreadNotFoundError as e:
+            logger.critical(f"Audio Not recorded: {e}")
+            raise err.BiometricError("Failed to get audio")
+        
+        self.queue = queue.Queue() # Reset the Queue
         return audio_samples
     

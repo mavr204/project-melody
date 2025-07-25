@@ -21,7 +21,10 @@ class ThreadManager:
     def __init__(self) -> None:
         self.active_threads: dict[str, ThreadEvent] = {}
 
-    def create_new_thread(self, target: callable, args: tuple, name: str, autostart=False) -> str | None:
+    def create_new_thread(self, target: callable, name: str, args: tuple=(), autostart=False) -> str | None:
+        if name in self.active_threads:
+            raise err.ThreadAlreadyExistsError(f"A thread with the name: {name}, already exists")
+
         t = Thread(target=target, args=args, name=name)
         stop_event = Event()
         self.active_threads[name] = ThreadEvent(t, stop_event)
