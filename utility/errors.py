@@ -2,6 +2,22 @@ class BiometricError(Exception):
     def __init__(self, *args):
         super().__init__(*args)
 
+class EncryptionError(BiometricError):
+    def __init__(self, *args):
+        super().__init__(*args)
+    
+class TemplateGenerationError(BiometricError):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+class TemplateLoadError(BiometricError):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+class KeyringAccessError(EncryptionError):
+    def __init__(self, *args):
+        super().__init__(*args)
+
 class InputPipelineError(Exception):
     def __init__(self, *args):
         super().__init__(*args)
@@ -22,22 +38,22 @@ class TranscriptionError(InputPipelineError):
     def __init__(self, *args):
         super().__init__(*args)
 
+class WakeUpError(InputPipelineError):
+    def __init__(self, *args):
+        super().__init__(*args)
+
 class FileAccessError(Exception):
     def __init__(self, *args):
         super().__init__(*args)
 
-class EncryptionError(BiometricError):
-    def __init__(self, *args):
-        super().__init__(*args)
-    
-class TemplateGenerationError(BiometricError):
+class ThreadError(Exception):
     def __init__(self, *args):
         super().__init__(*args)
 
-class TemplateLoadError(BiometricError):
+class ThreadNotFoundError(ThreadError):
     def __init__(self, *args):
         super().__init__(*args)
 
-class KeyringAccessError(EncryptionError):
+class ThreadAlreadyExistsError(ThreadError):
     def __init__(self, *args):
         super().__init__(*args)
