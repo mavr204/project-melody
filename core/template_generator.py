@@ -143,12 +143,13 @@ class BiometricTemplateGenerator:
         return False
 
     def start_template_update_thread(self, username: str, embedding: np.ndarray) -> None:
+        self._sync_template_update_thread()
         self.thread_mgr.create_new_thread(target=self._roll_template_update,
                                           args=(username, embedding),
                                           name=self._UPDATE_TEMPLATE_THREAD,
                                           autostart=True)
 
-    def sync_template_update_thread(self):
+    def _sync_template_update_thread(self) -> None:
         if self.thread_mgr.get_thread_status(self._UPDATE_TEMPLATE_THREAD) == ThreadStatus.RUNNING:
             self.thread_mgr.stop_thread(self._UPDATE_TEMPLATE_THREAD)
 
@@ -182,3 +183,14 @@ class BiometricTemplateGenerator:
 
         self._template[username] = updated_embedding
         self._save_template(username=username, embedding=updated_embedding)
+
+    def _delete_all_templates(self) -> None:
+        file_list = self._get_template_files(self._config_mgr.basic_info.usr_data_dir)
+        for file_name in file_list:
+            try:
+                os.remove(os.path.join(self._config_mgr.basic_info.usr_data_dir, file_name))
+            except (FileNotFoundError, OSError, ValueError) as e:
+                logger.warning(f"Skipping file {file_name} due to error: {e}")
+                continue
+
+        logger.info("Deleted All templates")
