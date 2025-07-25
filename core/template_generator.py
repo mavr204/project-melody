@@ -150,7 +150,7 @@ class BiometricTemplateGenerator:
                                           autostart=True)
 
     def _sync_template_update_thread(self) -> None:
-        if self.thread_mgr.get_thread_status(self._UPDATE_TEMPLATE_THREAD) == ThreadStatus.RUNNING:
+        if self.thread_mgr.get_thread_status(self._UPDATE_TEMPLATE_THREAD) != ThreadStatus.NOT_FOUND:
             self.thread_mgr.stop_thread(self._UPDATE_TEMPLATE_THREAD)
 
     def _normalize(self, embedding: np.ndarray) -> np.ndarray:
