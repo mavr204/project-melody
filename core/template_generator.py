@@ -12,6 +12,7 @@ logger = logger.get_logger(__name__)
 class BiometricTemplateGenerator:
     _EMBEDDING_SIZE = 256
     _UPDATE_TEMPLATE_THREAD = 'UpdateTemplateThread'
+
     def __init__(self, config_mgr: ConfigManager):
         self._config_mgr = config_mgr
         self._crypt_mgr = CryptManager(config=config_mgr)
@@ -29,7 +30,6 @@ class BiometricTemplateGenerator:
 
         Call sync_template_update_thread before accessing templates if consistency is critical.
         """
-
 
     @property
     def is_template(self) -> bool:
