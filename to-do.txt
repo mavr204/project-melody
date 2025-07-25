@@ -50,10 +50,10 @@ Audio pre-cleaning to avoid false triggers
 Maybe basic denoising logic if you’re planning to add it
 
 🧩 dev-misc
-Custom error classes ⭕
+Custom error classes ✅
 
-Thread manager
+Thread manager ⭕
 
-Queue manager
+Queue manager ⭕
 
 Any small refactors, logging tweaks, helper utils
