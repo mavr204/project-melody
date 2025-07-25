@@ -1,19 +1,21 @@
 import numpy as np
 from resemblyzer import VoiceEncoder
 from config.config_manager import ConfigManager
-from torch import tensor, float32, Tensor
 from utility import logger
 from utility.encrypt import CryptManager
 import os
 import utility.errors as err
+from utility.thread_manager import ThreadManager, ThreadStatus
 
 logger = logger.get_logger(__name__)
 
 class BiometricTemplateGenerator:
     _EMBEDDING_SIZE = 256
+    _UPDATE_TEMPLATE_THREAD = 'UpdateTemplateThread'
     def __init__(self, config_mgr: ConfigManager):
         self._config_mgr = config_mgr
         self._crypt_mgr = CryptManager(config=config_mgr)
+        self.thread_mgr = ThreadManager()
 
         try:
             self._encoder = VoiceEncoder()
@@ -22,6 +24,12 @@ class BiometricTemplateGenerator:
             raise err.BiometricError("Failed to initialize encoder")
         
         self._template: dict[str, np.ndarray] = self._load_embedding()
+        """
+        Waits for any active template update thread to finish.
+
+        Call sync_template_update_thread before accessing templates if consistency is critical.
+        """
+
 
     @property
     def is_template(self) -> bool:
@@ -42,7 +50,7 @@ class BiometricTemplateGenerator:
                 for audio in audio_list
             ]
         except Exception as e:
-            logger.critical(f"Bad Audio.:{e} Stoppting template generation...")
+            logger.critical(f"Bad Audio:{e} stopping template generation...")
             return
 
         try:
@@ -52,29 +60,29 @@ class BiometricTemplateGenerator:
         
         if not isinstance(template, np.ndarray):
             raise err.TemplateGenerationError("Generated template is not valid")
-
-        while True:
-            username=input('Enter Username: ').strip()
-            if username in self._template:
-                logger.warning("Template for this username already exists and will be overwritten.")
-            if username:
-                break
-            logger.error("Invalid Username! Try again...")
                 
+        username = self._get_username()
 
-
-        self._is_template = True
         self._template[username] = template
 
-        self._save_template(username=username)
-                
-    def _save_template(self, username: str) -> None:
+        self._save_template(username=username, embedding=template)
+
+    def _get_username(self) -> str:
+        while True:
+                username=input('Enter Username: ').strip()
+                if username in self._template:
+                    logger.warning("Template for this username already exists and will be overwritten.")
+                if username:
+                    return username
+                logger.error("Invalid Username! Try again...")
+    
+    def _save_template(self, username: str, embedding: np.ndarray) -> None:
         for attempt_num in range(3): # Tries to save the template 3 times
             try:
                 filename = os.path.join(self._config_mgr.basic_info.usr_data_dir,
                                         self._config_mgr.biometric_config.get_file_name(username=username))
                 
-                cipher = self._crypt_mgr.encrypt(self._template[username].tobytes())
+                cipher = self._crypt_mgr.encrypt(embedding.tobytes())
 
                 with open(filename, 'wb') as f:
                     f.write(cipher)
@@ -98,13 +106,6 @@ class BiometricTemplateGenerator:
                     username = self._config_mgr.biometric_config.extract_username(file_name)
                     dic[username] = self._normalize(embedding)
             except (FileNotFoundError, IOError, ValueError) as e:
-                logger.warning(f"Skipping file {file_name} due to error: {e}")
-                continue
-            
-            try:
-                if not isinstance(embedding, np.ndarray) or embedding.shape != (self._EMBEDDING_SIZE,) or embedding.dtype != np.float32:
-                    raise err.BiometricError("Invalid template")
-            except err.BiometricError as e:
                 logger.warning(f"Skipping file {file_name} due to error: {e}")
                 continue
 
@@ -136,9 +137,20 @@ class BiometricTemplateGenerator:
             if similarity >= self._config_mgr.biometric_config.threshold:
                 logger.debug(f'Similarity: {similarity}')
                 logger.debug(f'Matched with: {username}')
+                self.start_template_update_thread(username=username, embedding=new_embedding_norm)
                 return True
         
         return False
+
+    def start_template_update_thread(self, username: str, embedding: np.ndarray) -> None:
+        self.thread_mgr.create_new_thread(target=self._roll_template_update,
+                                          args=(username, embedding),
+                                          name=self._UPDATE_TEMPLATE_THREAD,
+                                          autostart=True)
+
+    def sync_template_update_thread(self):
+        if self.thread_mgr.get_thread_status(self._UPDATE_TEMPLATE_THREAD) == ThreadStatus.RUNNING:
+            self.thread_mgr.stop_thread(self._UPDATE_TEMPLATE_THREAD)
 
     def _normalize(self, embedding: np.ndarray) -> np.ndarray:
         norm = np.linalg.norm(embedding)
@@ -158,3 +170,15 @@ class BiometricTemplateGenerator:
             f for f in files
             if f.startswith(prefix) and f.endswith(suffix)
     ]
+
+    def _roll_template_update(self, username:str, embedding: np.ndarray) -> None:
+        existing_template: np.ndarray = self._template[username]
+
+        new_embedding_weight = self._config_mgr.biometric_config.update_weight
+        existing_weight = (1 - new_embedding_weight)
+        
+        updated_embedding = (existing_weight * existing_template) + (new_embedding_weight * embedding)
+        updated_embedding = self._normalize(updated_embedding)
+
+        self._template[username] = updated_embedding
+        self._save_template(username=username, embedding=updated_embedding)

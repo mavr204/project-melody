@@ -67,6 +67,7 @@ class VoiceBiometricConfig:
     threshold: float = 0.75
     encrypt_key_length = 256
     nonce_bytes = 12 # generates a 12 nonce | AES-GCM standadizes a 12 byte nonce
+    update_weight = 0.2 # from a scale from 0 to 1
 
     def get_file_name(self, username: str) -> str:
         return f"biometric_template_{username}.enc"
