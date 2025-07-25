@@ -28,6 +28,9 @@ Melody can currently:
 * ✅ Modular audio pipeline (dataclass-driven)
 * ✅ One-shot command support (e.g., "melody, play music")
 * ✅ Persistent biometric template with validation
+* ✅ Rolling update of biometric templates on matched attempts
+* ✅ Custom Thread management
+* ✅ Custom Errors
 
 ---
 
@@ -65,9 +68,3 @@ Melody can currently:
 
 * 🎯 **Command Engine Overhaul**
   Move from raw `subprocess` calls to a structured and extensible command execution layer.
-
-* 🎯 **Thread + Queue Management**
-  Better concurrency model for smoother pipeline execution.
-
-* 🎯 **Template Improvement**
-  Update biometric template passively on successful activations.
