@@ -2,58 +2,38 @@
 
 1. **Input Pipeline Improvements**
 
-   * Build a proper thread manager.
-   * Build a queue manager.
-   * Add custom errors (for better debugging & control).
-   * Handle template-related exceptions better (e.g., save failure, encryption error, etc.).
+   * Build a proper thread manager. ✅
+   * Build a queue manager. ✅
+   * Add custom errors (for better debugging & control). ✅
+   * Handle template-related exceptions better (e.g., save failure, encryption error, etc.). ✅
 
 2. **Audio Processing**
 
-   * Preprocess audio (remove low-frequency/background noise).
-   * Add proper audio filters.
+   * Preprocess audio (remove low-frequency/background noise). ✅
+   * Add proper audio filters. ✅
 
-3. **Wake Word System**
-
-   * Build a dedicated wake-word detection model.
-   * Move beyond hardcoded one-shot logic.
-
-4. **Security**
+5. **Security**
 
    * Encrypt the stored template. ✅
    * Lock down file access (`chmod`, etc.).✅
    * Possibly hash + verify integrity of templates.✅
 
-5. **Template Management**
+6. **Template Management**
 
-   * Implement **template improvement** (adaptive enrollment after successful wakeups).
-   * clear template, new template
-   * Possibly use a running average or sliding buffer.
-   * Log or audit template changes.
+   * Implement **template improvement** (adaptive enrollment after successful wakeups). ✅
+   * clear template, new template ✅
+   * Log or audit template changes.✅
 
-6. **Natural Language Understanding (NLU)**
+7. **Unit Testing**
+   * Learn about Unit Testing
+   * Implement Unit Testing
+
+8. **Natural Language Understanding (NLU)**
 
    * Build the NLU system to handle more than just `"play music"`.
    * Smart follow-up and context awareness.
 
-🔁 dev-template-improvements
-Template encryption ✅
+9. **Wake Word System**
 
-Auto-template update after successful auth ⭕
-
-Anything directly related to the biometric flow and storage ⭕
-
-🔊 dev-audio-processing
-Noise suppression / filtering low frequencies
-
-Audio pre-cleaning to avoid false triggers
-
-Maybe basic denoising logic if you’re planning to add it
-
-🧩 dev-misc
-Custom error classes ✅
-
-Thread manager ✅
-
-Queue manager ❌
-
-Any small refactors, logging tweaks, helper utils ✅
+   * Build a dedicated wake-word detection model.
+   * Move beyond hardcoded one-shot logic.

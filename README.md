@@ -31,6 +31,7 @@ Melody can currently:
 * ✅ Rolling update of biometric templates on matched attempts
 * ✅ Custom Thread management
 * ✅ Custom Errors
+* ✅ Audio Filtering and Normalization
 
 ---
 
