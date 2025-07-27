@@ -2,7 +2,7 @@ from config.config_manager import ConfigManager
 from core.template_generator import BiometricTemplateGenerator
 from core.input_pipeline import InputPipeline
 from core.assistant import run_command
-from utility import logger
+from utility import logger, errors as err
 
 logger = logger.get_logger(__name__)
 
@@ -15,7 +15,7 @@ def main():
         logger.debug('='*60)
         try:
             audio = audio_input.get_command()
-        except RuntimeError:
+        except err.TemplateLoadError:
             template_audio = audio_input.get_template_audio()
             biometric_template.get_new_template(template_audio)
             del template_audio

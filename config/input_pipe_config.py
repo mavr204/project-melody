@@ -41,6 +41,12 @@ class AudioConfig:
     channels: int = 1
     dtype: str = 'float32'
 
+@dataclass
+class FilterConfig:
+    low_cutoff: int = 300
+    high_cutoff: int = 3_400
+    normalizing_peak = 0.95
+
 
 @dataclass
 class WhisperModelConfig:
