@@ -13,6 +13,7 @@ from config.config_manager import ConfigManager
 from utility.logger import get_logger
 import utility.errors as err
 from utility.thread_manager import ThreadManager, ThreadStatus
+from utility.audio_filtration import normalize_audio, bandpass_filter, filter_audio
 
 class WakeUpChecks:
     def __init__(self):
@@ -31,6 +32,9 @@ class InputPipeline:
         self.voice_template = voice_template
         self.vad = SpeechVAD(self._config.vad_config)
         self.silence_frame_counter = 0
+        self.audio_filter = bandpass_filter(sample_rate=config.audio_config.sample_rate,
+                                            low_cutoff=config.filter_config.low_cutoff,
+                                            high_cutoff=config.filter_config.high_cutoff)
 
     def transcribe_audio(self, audio: np.ndarray) -> str:
         try:
@@ -80,13 +84,14 @@ class InputPipeline:
                                 dtype=config.audio_config.dtype)
                 sd.wait()
                 recording = recording.flatten()
-                self.queue.put(recording)
+                self.queue.put(filter_audio(audio=recording, sos_filter=self.audio_filter))
         except Exception as e:
             raise err.AudioStreamError("There was an Error recording audio...") from e
 
     def wake_up_validation(self, audio:np.ndarray, wake_up_checks: WakeUpChecks) -> None:
             transcript = self.transcribe_audio(audio=audio)
-            logger.debug(transcript)
+            audio = normalize_audio(audio=audio, target_peak=self._config.filter_config.normalizing_peak)
+            logger.debug("Wake Up prompt: " + transcript)
             wake_up_checks.wake_up = wud.wake_up_detection_stub(ip=transcript)
 
             if wake_up_checks.wake_up:
@@ -215,10 +220,10 @@ class InputPipeline:
             if not vad_active:
                 audio = self.byte_to_float32_audio(speech_frames)
                 transcription = self.transcribe_audio(audio=audio)
-                logger.debug(f'detected: {transcription}')
                 if wud.wake_up_detection_stub(ip=transcription):
+                    audio = normalize_audio(audio=audio, target_peak=self._config.filter_config.normalizing_peak)
                     audio_samples.append(audio)
-                    logger.info(f'detected: {transcription}')
+                    logger.info(f'detected prompt: {transcription}')
                     audio_samples_count += 1
                     logger.info(f'Audio Recorded: {audio_samples_count}/{self._config.biometric_config.audio_sample_required}')
                 else:
@@ -234,4 +239,5 @@ class InputPipeline:
         
         self.queue = queue.Queue() # Reset the Queue
         return audio_samples
+    
     
