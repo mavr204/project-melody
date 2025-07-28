@@ -17,6 +17,7 @@ class BiometricTemplateGenerator:
         self._config_mgr = config_mgr
         self._crypt_mgr = CryptManager(config=config_mgr)
         self.thread_mgr = ThreadManager()
+        self._template: dict[str, np.ndarray] = {}
 
         try:
             self._encoder = VoiceEncoder()
@@ -24,7 +25,7 @@ class BiometricTemplateGenerator:
             logger.critical(f"VoiceEncoder init failed: {e}")
             raise err.BiometricError("Failed to initialize encoder")
         
-        self._template: dict[str, np.ndarray] = self._load_embedding()
+        self._template = self._load_embedding()
         """
         Waits for any active template update thread to finish.
 
@@ -143,15 +144,13 @@ class BiometricTemplateGenerator:
         return False
 
     def start_template_update_thread(self, username: str, embedding: np.ndarray) -> None:
-        self._sync_template_update_thread()
+        if self.thread_mgr.get_thread_status(self._UPDATE_TEMPLATE_THREAD) != ThreadStatus.NOT_FOUND:
+            self.thread_mgr.stop_thread(self._UPDATE_TEMPLATE_THREAD)
+        
         self.thread_mgr.create_new_thread(target=self._roll_template_update,
                                           args=(username, embedding),
                                           name=self._UPDATE_TEMPLATE_THREAD,
                                           autostart=True)
-
-    def _sync_template_update_thread(self) -> None:
-        if self.thread_mgr.get_thread_status(self._UPDATE_TEMPLATE_THREAD) != ThreadStatus.NOT_FOUND:
-            self.thread_mgr.stop_thread(self._UPDATE_TEMPLATE_THREAD)
 
     def _normalize(self, embedding: np.ndarray) -> np.ndarray:
         norm = np.linalg.norm(embedding)
