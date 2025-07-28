@@ -88,6 +88,7 @@ class BiometricTemplateGenerator:
                 with open(filename, 'wb') as f:
                     f.write(cipher)
                 logger.info("New biometric template generated and saved.")
+                break
 
             except (OSError, IOError):
                 if attempt_num < 2:
