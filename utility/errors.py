@@ -26,6 +26,10 @@ class InvalidAudioError(InputPipelineError):
     def __init__(self, *args):
         super().__init__(*args)
 
+class QueueEmptyError(InputPipelineError):
+    def __init__(self, *args):
+        super().__init__(*args)
+
 class ModelLoadError(InputPipelineError):
     def __init__(self, *args):
         super().__init__(*args)
