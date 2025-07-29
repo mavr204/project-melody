@@ -1,0 +1,210 @@
+[   {
+        "text": "No match",
+        "intent": "no_match"
+    },
+    {
+        "text": "play some music",
+        "intent": "play_music"
+    },
+    {
+        "text": "play Lofi on YouTube",
+        "intent": "play_music",
+        "entities": [
+            { "entity": "song", "value": "Lofi" },
+            { "entity": "platform", "value": "YouTube" }
+        ]
+    },
+    {
+        "text": "turn off the lights",
+        "intent": "control_device",
+        "entities": [
+            { "entity": "device", "value": "lights" },
+            { "entity": "action", "value": "off" }
+        ]
+    },
+    {
+        "text": "what's the weather like in Delhi",
+        "intent": "get_weather",
+        "entities": [
+            { "entity": "location", "value": "Delhi" }
+        ]
+    },
+    {
+        "text": "remind me to call mom at 8pm",
+        "intent": "set_reminder",
+        "entities": [
+            { "entity": "task", "value": "call mom" },
+            { "entity": "time", "value": "8pm" }
+        ]
+    },
+    {
+        "text": "what's on my schedule tomorrow",
+        "intent": "get_schedule",
+        "entities": [
+            { "entity": "time", "value": "tomorrow" }
+        ]
+    },
+    {
+        "text": "tell me a joke",
+        "intent": "tell_joke"
+    },
+    {
+        "text": "how's the traffic to airport",
+        "intent": "get_traffic",
+        "entities": [
+            { "entity": "destination", "value": "airport" }
+        ]
+    },
+    {
+        "text": "set alarm for 6 in the morning",
+        "intent": "set_alarm",
+        "entities": [
+            { "entity": "time", "value": "6 in the morning" }
+        ]
+    },
+    {
+        "text": "set an alarm for 7 am",
+        "intent": "set_alarm",
+        "entities": [
+            { "entity": "time", "value": "7 am" }
+        ]
+    },
+    {
+        "text": "what's the weather like in Mumbai?",
+        "intent": "get_weather",
+        "entities": [
+            { "entity": "location", "value": "Mumbai" }
+        ]
+    },
+    {
+        "text": "turn off the lights in the kitchen",
+        "intent": "control_device",
+        "entities": [
+            { "entity": "device", "value": "lights" },
+            { "entity": "location", "value": "kitchen" },
+            { "entity": "action", "value": "off" }
+        ]
+    },
+    {
+        "text": "remind me to call mom at 5",
+        "intent": "set_reminder",
+        "entities": [
+            { "entity": "task", "value": "call mom" },
+            { "entity": "time", "value": "5" }
+        ]
+    },
+    {
+        "text": "how long will it take to get to the airport?",
+        "intent": "get_travel_time",
+        "entities": [
+            { "entity": "destination", "value": "airport" }
+        ]
+    },
+    {
+        "text": "tell me a joke",
+        "intent": "tell_joke"
+    },
+    {
+        "text": "what’s the capital of Germany?",
+        "intent": "get_fact",
+        "entities": [
+            { "entity": "subject", "value": "capital of Germany" }
+        ]
+    },
+    {
+        "text": "start a timer for 10 minutes",
+        "intent": "start_timer",
+        "entities": [
+            { "entity": "duration", "value": "10 minutes" }
+        ]
+    },
+    {
+        "text": "take a screenshot",
+        "intent": "system_command",
+        "entities": [
+            { "entity": "command", "value": "screenshot" }
+        ]
+    },
+    {
+        "text": "lock the computer",
+        "intent": "system_command",
+        "entities": [
+            { "entity": "command", "value": "lock" }
+        ]
+    },
+    {
+        "text": "schedule a meeting with John tomorrow at 3pm",
+        "intent": "schedule_meeting",
+        "entities": [
+            { "entity": "person", "value": "John" },
+            { "entity": "date", "value": "tomorrow" },
+            { "entity": "time", "value": "3pm" }
+        ]
+    },
+    {
+        "text": "send an email to Alice saying I'm running late",
+        "intent": "send_email",
+        "entities": [
+            { "entity": "recipient", "value": "Alice" },
+            { "entity": "content", "value": "I'm running late" }
+        ]
+    },
+    {
+        "text": "what does recursion mean?",
+        "intent": "define_term",
+        "entities": [
+            { "entity": "term", "value": "recursion" }
+        ]
+    },
+    {
+        "text": "search for best budget laptops",
+        "intent": "web_search",
+        "entities": [
+            { "entity": "query", "value": "best budget laptops" }
+        ]
+    },
+    {
+        "text": "open Chrome",
+        "intent": "launch_application",
+        "entities": [
+            { "entity": "application", "value": "Chrome" }
+        ]
+    },
+    {
+        "text": "what’s 25 times 4?",
+        "intent": "math_calculation",
+        "entities": [
+            { "entity": "expression", "value": "25 times 4" }
+        ]
+    },
+    {
+        "text": "increase the volume",
+        "intent": "control_volume",
+        "entities": [
+            { "entity": "action", "value": "increase" }
+        ]
+    },
+    {
+        "text": "mute the system",
+        "intent": "control_volume",
+        "entities": [
+            { "entity": "action", "value": "mute" }
+        ]
+    },
+    {
+        "text": "translate hello to French",
+        "intent": "translate",
+        "entities": [
+            { "entity": "source_text", "value": "hello" },
+            { "entity": "target_language", "value": "French" }
+        ]
+    },
+    {
+        "text": "navigate to the nearest gas station",
+        "intent": "navigate_to_location",
+        "entities": [
+            { "entity": "destination", "value": "nearest gas station" }
+        ]
+    }
+
+]

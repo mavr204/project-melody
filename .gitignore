@@ -4,3 +4,5 @@
 __pycache__/
 template/voice_template.npy/
 to-do.txt/
+# NLU/data/
+NLU/model/

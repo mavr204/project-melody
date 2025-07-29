@@ -25,8 +25,8 @@
    * Log or audit template changes.✅
 
 7. **Unit Testing**
-   * Learn about Unit Testing
-   * Implement Unit Testing
+   * Learn about Unit Testing ✅
+   * Implement Unit Testing ✅
 
 8. **Natural Language Understanding (NLU)**
 

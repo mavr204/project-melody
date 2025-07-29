@@ -1,0 +1,30 @@
+__label__no_match No match
+__label__play_music play some music
+__label__play_music play Lofi on YouTube
+__label__control_device turn off the lights
+__label__get_weather what's the weather like in Delhi
+__label__set_reminder remind me to call mom at 8pm
+__label__get_schedule what's on my schedule tomorrow
+__label__tell_joke tell me a joke
+__label__get_traffic how's the traffic to airport
+__label__set_alarm set alarm for 6 in the morning
+__label__set_alarm set an alarm for 7 am
+__label__get_weather what's the weather like in Mumbai?
+__label__control_device turn off the lights in the kitchen
+__label__set_reminder remind me to call mom at 5
+__label__get_travel_time how long will it take to get to the airport?
+__label__tell_joke tell me a joke
+__label__get_fact what’s the capital of Germany?
+__label__start_timer start a timer for 10 minutes
+__label__system_command take a screenshot
+__label__system_command lock the computer
+__label__schedule_meeting schedule a meeting with John tomorrow at 3pm
+__label__send_email send an email to Alice saying I'm running late
+__label__define_term what does recursion mean?
+__label__web_search search for best budget laptops
+__label__launch_application open Chrome
+__label__math_calculation what’s 25 times 4?
+__label__control_volume increase the volume
+__label__control_volume mute the system
+__label__translate translate hello to French
+__label__navigate_to_location navigate to the nearest gas station
