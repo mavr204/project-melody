@@ -6,7 +6,7 @@ from threading import Thread, Event, enumerate as thread_enumerate
 import queue
 
 # Local
-from core.VAD import SpeechVAD
+from utility.VAD import SpeechVAD
 from core.template_generator import BiometricTemplateGenerator
 import stubs.wake_up_detection as wud
 from config.config_manager import ConfigManager
