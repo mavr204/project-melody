@@ -32,6 +32,7 @@ Melody can currently:
 * ✅ Custom Thread management
 * ✅ Custom Errors
 * ✅ Audio Filtering and Normalization
+* ✅ Integrated Unit testing
 
 ---
 
@@ -50,17 +51,20 @@ Melody can currently:
 * `cryptography`
 * `keyring`
 * `appdirs`
+* `scipy.signal`
+* `unittest`
+* `pytest`
 
 ---
 
 ## Roadmap / Planned
 
-* 🎯 **Audio Preprocessing**
-  Filter low-frequency noise, suppress background sounds.
-
 * 🎯 **Wake Word Model**
   Replace fuzzy matching with a lightweight neural model (no transcription required).
 
+* 🎯 **Change VAD model**
+  Replace the webrtcvad model with a better vad model.
+    
 * 🎯 **Biometric Model Upgrade**
   Move to `ECAPA-TDNN` (e.g., from SpeechBrain) for faster and more robust voice verification.
 

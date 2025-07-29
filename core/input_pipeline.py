@@ -6,7 +6,7 @@ from threading import Thread, Event, enumerate as thread_enumerate
 import queue
 
 # Local
-from core.VAD import SpeechVAD
+from utility.VAD import SpeechVAD
 from core.template_generator import BiometricTemplateGenerator
 import stubs.wake_up_detection as wud
 from config.config_manager import ConfigManager
@@ -103,8 +103,8 @@ class InputPipeline:
             return (chunk * np.iinfo(np.int16).max).astype(np.int16).tobytes()
         except queue.Empty:
             logger.critical("Queue is empty, Exiting...")
-            self._kill_all_child_threads()
-            sys.exit(1)
+            self.thread_manager.stop_all_threads()
+            raise err.QueueEmptyError("Audio queue is empty")
 
     def _voice_activity_detector(self, speech_frames: list[bytes]) -> bool:
         audio_bytes = self._process_audio_to_bytes()

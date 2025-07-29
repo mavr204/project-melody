@@ -33,12 +33,12 @@ class ThreadManager:
             try:
                 self.start_thread(name=name)
                 logger.info(f'Thread: {name} started')
-            except err.ThreadError as e:
-                logger.critical(f"Failed to start thread: {name}\nError:{e}")
             except err.ThreadNotFoundError as e:
                 logger.critical(f"There was problem creating the the thread: {name}\nError:{e}")
                 self.stop_thread(name)
                 return None
+            except err.ThreadError as e:
+                logger.critical(f"Failed to start thread: {name}\nError:{e}")
 
         return name
 
@@ -60,6 +60,7 @@ class ThreadManager:
         if t is None:
             logger.error(f"No {name} thread found")
             raise err.ThreadNotFoundError(f"{name} thread was not found")
+
 
         if not t.stop_event.is_set():
             t.stop_event.set()
